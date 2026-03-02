@@ -1,0 +1,53 @@
+Starting project at /home/nitish/Documents/campus-safety-hub/frontend
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓░░░░░░░░░░ 39.5% (362/805)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓░░░░░░░░░░ 43.4% (394/802)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.0% (1005/1138)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.9% ( 974/1111)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.5% (1414/1495)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.6% (1380/1466)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 13177ms node_modules/expo-router/node/render.js (1709 modules)
+"shadow*" style props are deprecated. Use "boxShadow".
+"shadow*" style props are deprecated. Use "boxShadow".
+"shadow*" style props are deprecated. Use "boxShadow".
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 10406ms node_modules/expo-router/node/render.js (1 module)
+λ Bundled 3628ms node_modules/expo-router/node/render.js (1 module)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.6% (1669/1681)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 14986ms node_modules/expo-router/entry.js (1681 modules)
+Web Bundled 12146ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 5319ms node_modules/expo-router/entry.js (1 module)
+Error: Cannot pipe to a closed or destroyed stream
+    at pipelineImpl (node:internal/streams/pipeline:264:15)
+    at node:stream/promises:31:5
+    at new Promise (<anonymous>)
+    at pipeline (node:stream/promises:20:10)
+    at respond (/home/nitish/Documents/campus-safety-hub/frontend/node_modules/expo-server/src/vendor/http.ts:138:19)
+    at /home/nitish/Documents/campus-safety-hub/frontend/node_modules/expo-server/src/vendor/http.ts:68:13
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.3% ( 901/1090)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.8% (1649/1659)
+Web Bundled 6932ms node_modules/expo-router/entry.js (1684 modules)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+"shadow*" style props are deprecated. Use "boxShadow".
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 36ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 298ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 41ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
