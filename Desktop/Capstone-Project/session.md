@@ -325,4 +325,35 @@ Console access: friend has login credentials for both.
 
 ---
 
-*Last updated: 2026-03-01 (session 2)*
+---
+
+## Session: 2026-03-03 — Firebase Bridge Activated & Tested
+
+### What Was Done
+1. Added Firebase service account key to `campus-safety-hub/backend/.env`
+   - Project: `acadia-campus-hub`
+   - Service account: `firebase-adminsdk-fbsvc@acadia-campus-hub.iam.gserviceaccount.com`
+2. Restarted campus backend — confirmed log: `Firebase Admin SDK initialized for Dashboard bridge`
+3. Sent test SOS via curl — confirmed log: `SOS mirrored to Firestore`
+4. Full bridge confirmed working end-to-end ✅
+
+### Test Results
+| Test | Result |
+|------|--------|
+| Backend health check | ✅ |
+| Student signup (`test@acadiau.ca`) | ✅ |
+| SOS POST → MongoDB save | ✅ |
+| SOS POST → Firestore mirror | ✅ (real-time on Dashboard) |
+| Firebase Admin SDK init | ✅ |
+
+### MongoDB Fix
+- MongoDB was running as a replica set but uninitialized → ran `rs.initiate()` in mongosh to fix
+
+### Current State
+- Campus backend fully operational with Firestore bridge enabled
+- Dashboard receives SOS alerts in real-time via Firestore `onSnapshot`
+- Student App receives Dashboard broadcasts via `GET /api/alerts` → Firestore `broadcasts`
+
+---
+
+*Last updated: 2026-03-03*
