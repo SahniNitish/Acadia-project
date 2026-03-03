@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { 
-  signInWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
@@ -9,6 +9,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { authAPI } from '../services/api';
 
 interface User {
   id: string;
@@ -72,9 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadStoredAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('firebaseToken');
-      if (storedToken) {
-        setToken(storedToken);
-      }
+      if (storedToken) setToken(storedToken);
     } catch (error) {
       console.log('Error loading auth:', error);
     }
@@ -84,43 +83,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isAcadiaEmail(email)) {
       throw new Error('Only @acadiau.ca emails are allowed');
     }
-    
+
+    // Firebase login
     const result = await signInWithEmailAndPassword(auth, email, password);
     const idToken = await result.user.getIdToken();
-    
     await AsyncStorage.setItem('firebaseToken', idToken);
     setToken(idToken);
     setFirebaseUser(result.user);
-    setUser({
-      id: result.user.uid,
-      full_name: result.user.displayName || '',
-      email: result.user.email || '',
-      profile_photo: result.user.photoURL || undefined,
-    });
+
+    // Campus backend login — get backend JWT for API calls
+    try {
+      const backendResult = await authAPI.login({ email, password });
+      await AsyncStorage.setItem('token', backendResult.data.token);
+      setUser({
+        id: backendResult.data.user.id,
+        full_name: backendResult.data.user.full_name,
+        email: backendResult.data.user.email,
+        phone: backendResult.data.user.phone,
+        profile_photo: backendResult.data.user.profile_photo,
+      });
+    } catch {
+      setUser({
+        id: result.user.uid,
+        full_name: result.user.displayName || '',
+        email: result.user.email || '',
+        profile_photo: result.user.photoURL || undefined,
+      });
+    }
   };
 
   const signup = async (data: { full_name: string; email: string; phone: string; password: string }) => {
     if (!isAcadiaEmail(data.email)) {
       throw new Error('Only @acadiau.ca emails are allowed');
     }
-    
+
+    // Firebase signup
     const result = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    
-    await updateProfile(result.user, {
-      displayName: data.full_name
-    });
-    
+    await updateProfile(result.user, { displayName: data.full_name });
     const idToken = await result.user.getIdToken();
-    
     await AsyncStorage.setItem('firebaseToken', idToken);
     setToken(idToken);
     setFirebaseUser(result.user);
-    setUser({
-      id: result.user.uid,
-      full_name: data.full_name,
-      email: result.user.email || '',
-      phone: data.phone,
-    });
+
+    // Campus backend signup — get backend JWT for API calls
+    try {
+      const backendResult = await authAPI.signup(data);
+      await AsyncStorage.setItem('token', backendResult.data.token);
+      setUser({
+        id: backendResult.data.user.id,
+        full_name: backendResult.data.user.full_name,
+        email: backendResult.data.user.email,
+        phone: backendResult.data.user.phone,
+      });
+    } catch {
+      setUser({
+        id: result.user.uid,
+        full_name: data.full_name,
+        email: result.user.email || '',
+        phone: data.phone,
+      });
+    }
   };
 
   const logout = async () => {
@@ -130,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Firebase signOut error:', error);
     }
     await AsyncStorage.removeItem('firebaseToken');
+    await AsyncStorage.removeItem('token');
     setToken(null);
     setUser(null);
     setFirebaseUser(null);
