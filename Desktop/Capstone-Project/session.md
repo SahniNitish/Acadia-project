@@ -381,4 +381,77 @@ Users must **log out and log back in** once after this fix for the backend token
 
 ---
 
+## Session: 2026-03-03 (3) — Environment Setup on macOS
+
+### What Was Done
+1. **Installed dependencies** for both apps on macOS (Node v22.22.0, npm 10.9.4)
+   - Dashboard: `npm install --legacy-peer-deps` (peer dep conflict with `react-day-picker` + `date-fns@4`)
+   - Student App: `npm install` (clean install, 1033 packages)
+2. **Started both dev servers** successfully:
+   - Dashboard (React web): **http://localhost:3000** — compiled successfully
+   - Student App (Expo web): **http://localhost:8081** — bundled successfully (1686 modules)
+
+### Current macOS Paths
+| App | Path |
+|-----|------|
+| Dashboard | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/Dashboard/frontend/` |
+| Student App | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/campus-safety-hub/frontend/` |
+| User-App | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/User-App/frontend/` (DEPRECATED) |
+| session.md | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/session.md` |
+| AGENTS.md | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/AGENTS.md` |
+
+### Firebase Projects (unchanged)
+| App | Project ID | Config File |
+|-----|-----------|-------------|
+| Dashboard | `acadia-campus-hub` | `Dashboard/frontend/src/lib/firebase.js` |
+| Student App | `acadia-safety` | `campus-safety-hub/frontend/src/firebase/config.ts` |
+
+3. **Started MongoDB** via `brew services start mongodb-community`
+4. **Created `.env` files** for both backends (local MongoDB):
+   - `Dashboard/backend/.env`: `MONGO_URL=mongodb://localhost:27017`, `DB_NAME=acadia_safe`
+   - `campus-safety-hub/backend/.env`: same + empty `FIREBASE_SERVICE_ACCOUNT_JSON=` (bridge disabled)
+5. **Created Python venvs** and installed dependencies:
+   - Used Python 3.14.3, pinned `pymongo==4.5.0` (motor 3.3.1 incompatible with pymongo 4.16)
+   - Skipped `emergentintegrations` (Emergent platform only, not on PyPI)
+6. **Started both backends** — both healthy:
+   - Dashboard backend: **http://localhost:8000** (port 8000)
+   - Campus backend: **http://localhost:8001** (port 8001)
+
+### All 4 Services Running
+| Service | URL | Status |
+|---------|-----|--------|
+| Dashboard frontend | http://localhost:3000 | Running |
+| Dashboard backend | http://localhost:8000 | Healthy |
+| Student App (Expo) | http://localhost:8081 | Running |
+| Campus backend | http://localhost:8001 | Healthy |
+
+### Notes
+- The Firebase config the user pasted matches the Dashboard's existing `acadia-campus-hub` config — no changes needed
+- Firebase bridge is now **ACTIVE** — service account key added to campus backend `.env`
+- MongoDB running locally via Homebrew (`mongodb-community`)
+- Campus backend listens on `0.0.0.0:8001` (accessible from phone via LAN IP)
+
+### Auth Fix Applied — `campus-safety-hub/frontend/src/context/AuthContext.tsx`
+**Problem:** SOS and all protected API calls returned 403. The `api.ts` interceptor reads `AsyncStorage.getItem('token')` (campus backend JWT), but on page reload `onAuthStateChanged` only restored the Firebase token — never the backend JWT.
+
+**Fixes applied:**
+1. `onAuthStateChanged` now checks for stored backend token and validates via `/auth/me`. If missing/expired, forces re-login.
+2. New `getBackendToken()` helper — tries campus backend login first, auto-registers if user doesn't exist in MongoDB. No more silent failures.
+3. Both `login()` and `signup()` use `getBackendToken()` for resilient backend auth.
+
+**Status:** Users must sign up through the app (creates account in both Firebase `acadia-safety` + campus backend MongoDB). Login then works for both.
+
+### Files Changed This Session
+| File | Change |
+|------|--------|
+| `campus-safety-hub/frontend/src/context/AuthContext.tsx` | Fixed auth: backend token persistence, auto-signup fallback, forced re-login on missing token |
+| `campus-safety-hub/frontend/src/services/api.ts` | Changed backend URL to LAN IP (`10.30.14.182:8001`) for phone access |
+| `campus-safety-hub/backend/.env` | Added Firebase service account key (bridge active) |
+| `Dashboard/backend/.env` | Created with local MongoDB config |
+
+### Known Issue — Still Investigating
+- SOS still returns 403 after signup — the `onAuthStateChanged` callback may fire and force sign-out before `signup()` finishes storing the backend token (race condition). Needs fix: either defer `onAuthStateChanged` logic during active login/signup, or restructure to avoid the conflict.
+
+---
+
 *Last updated: 2026-03-03*

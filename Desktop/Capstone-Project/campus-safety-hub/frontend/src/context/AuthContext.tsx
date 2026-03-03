@@ -46,20 +46,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadStoredAuth();
-    
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
         const idToken = await fbUser.getIdToken();
-        setToken(idToken);
         await AsyncStorage.setItem('firebaseToken', idToken);
-        setUser({
-          id: fbUser.uid,
-          full_name: fbUser.displayName || '',
-          email: fbUser.email || '',
-          profile_photo: fbUser.photoURL || undefined,
-        });
+
+        // Check if we already have a valid campus backend token
+        const existingBackendToken = await AsyncStorage.getItem('token');
+        if (existingBackendToken) {
+          // Restore user from stored backend token — try /auth/me
+          try {
+            const meResult = await authAPI.getMe();
+            setUser({
+              id: meResult.data.id,
+              full_name: meResult.data.full_name,
+              email: meResult.data.email,
+              phone: meResult.data.phone,
+              profile_photo: meResult.data.profile_photo,
+            });
+            setToken(existingBackendToken);
+          } catch {
+            // Backend token expired or invalid — force re-login
+            console.log('Backend token invalid, forcing re-login');
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('firebaseToken');
+            await signOut(auth);
+            return;
+          }
+        } else {
+          // No backend token — force re-login so login() can obtain one
+          console.log('No backend token found, forcing re-login');
+          await AsyncStorage.removeItem('firebaseToken');
+          await signOut(auth);
+          return;
+        }
       } else {
         setToken(null);
         setUser(null);
@@ -70,12 +91,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const loadStoredAuth = async () => {
+  const getBackendToken = async (email: string, password: string, fullName?: string, phone?: string) => {
+    // Try login first
     try {
-      const storedToken = await AsyncStorage.getItem('firebaseToken');
-      if (storedToken) setToken(storedToken);
-    } catch (error) {
-      console.log('Error loading auth:', error);
+      const backendResult = await authAPI.login({ email, password });
+      await AsyncStorage.setItem('token', backendResult.data.token);
+      return backendResult.data;
+    } catch (loginErr) {
+      console.log('Backend login failed, trying signup:', loginErr);
+    }
+    // If login failed (user not in MongoDB), auto-register
+    try {
+      const backendResult = await authAPI.signup({
+        full_name: fullName || email.split('@')[0],
+        email,
+        phone: phone || '',
+        password,
+      });
+      await AsyncStorage.setItem('token', backendResult.data.token);
+      return backendResult.data;
+    } catch (signupErr) {
+      console.error('Backend signup also failed:', signupErr);
+      return null;
     }
   };
 
@@ -88,21 +125,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await signInWithEmailAndPassword(auth, email, password);
     const idToken = await result.user.getIdToken();
     await AsyncStorage.setItem('firebaseToken', idToken);
-    setToken(idToken);
     setFirebaseUser(result.user);
 
-    // Campus backend login — get backend JWT for API calls
-    try {
-      const backendResult = await authAPI.login({ email, password });
-      await AsyncStorage.setItem('token', backendResult.data.token);
+    // Campus backend auth — get backend JWT for API calls
+    const backendData = await getBackendToken(
+      email, password, result.user.displayName || undefined
+    );
+    if (backendData) {
+      setToken(backendData.token);
       setUser({
-        id: backendResult.data.user.id,
-        full_name: backendResult.data.user.full_name,
-        email: backendResult.data.user.email,
-        phone: backendResult.data.user.phone,
-        profile_photo: backendResult.data.user.profile_photo,
+        id: backendData.user.id,
+        full_name: backendData.user.full_name,
+        email: backendData.user.email,
+        phone: backendData.user.phone,
+        profile_photo: backendData.user.profile_photo,
       });
-    } catch {
+    } else {
+      setToken(idToken);
       setUser({
         id: result.user.uid,
         full_name: result.user.displayName || '',
@@ -125,17 +164,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(idToken);
     setFirebaseUser(result.user);
 
-    // Campus backend signup — get backend JWT for API calls
-    try {
-      const backendResult = await authAPI.signup(data);
-      await AsyncStorage.setItem('token', backendResult.data.token);
+    // Campus backend auth — get backend JWT for API calls
+    const backendData = await getBackendToken(
+      data.email, data.password, data.full_name, data.phone
+    );
+    if (backendData) {
+      setToken(backendData.token);
       setUser({
-        id: backendResult.data.user.id,
-        full_name: backendResult.data.user.full_name,
-        email: backendResult.data.user.email,
-        phone: backendResult.data.user.phone,
+        id: backendData.user.id,
+        full_name: backendData.user.full_name,
+        email: backendData.user.email,
+        phone: backendData.user.phone,
       });
-    } catch {
+    } else {
       setUser({
         id: result.user.uid,
         full_name: data.full_name,
