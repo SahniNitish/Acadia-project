@@ -327,6 +327,31 @@ Console access: friend has login credentials for both.
 
 ---
 
+## Session: 2026-03-03 (2) — Fixed SOS 403 Auth Bug
+
+### Root Cause
+`api.ts` interceptor was reading `AsyncStorage.getItem('token')` but `AuthContext` only stored `'firebaseToken'` (a Firebase ID token). Campus backend can't verify Firebase tokens — it only accepts its own JWT. So every protected API call returned `403 Forbidden`.
+
+### Fix — `campus-safety-hub/frontend/src/context/AuthContext.tsx`
+Added dual auth: on login/signup, call campus backend too and store its JWT as `'token'`.
+
+| Event | Before | After |
+|-------|--------|-------|
+| Login | Firebase only → stored `'firebaseToken'` | Firebase + campus backend → also stores `'token'` |
+| Signup | Firebase only → stored `'firebaseToken'` | Firebase + campus backend → also stores `'token'` |
+| Logout | Cleared `'firebaseToken'` | Clears both `'firebaseToken'` and `'token'` |
+
+### How It Works Now
+1. Student logs in → Firebase auth (for identity) + `POST /api/auth/login` (for campus API token)
+2. Campus backend JWT stored as `'token'` in AsyncStorage
+3. `api.ts` interceptor picks up `'token'` → all API calls get proper `Authorization: Bearer` header
+4. SOS, escorts, incidents, friend-walk all work ✅
+
+### Note
+Users must **log out and log back in** once after this fix for the backend token to be stored.
+
+---
+
 ## Session: 2026-03-03 — Firebase Bridge Activated & Tested
 
 ### What Was Done
