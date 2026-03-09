@@ -5,21 +5,20 @@
 
 ---
 
-## IMPORTANT: Correct Project Structure
+## Project Structure (Cleaned Up 2026-03-09)
 
-There are **3 separate codebases** across 2 locations on disk:
+There are **2 apps** in the project:
 
-| App | Path | Tech | Who Uses It | Git Remote |
-|-----|------|------|-------------|------------|
-| **Dashboard** | `/home/nitish/Desktop/Capstone-Project/Dashboard/` | React 19 (web) | Security staff | `github.com/SahniNitish/Acadia-safety-dashboard` |
-| **Student App** | `/home/nitish/Documents/campus-safety-hub/frontend/` | React Native + Expo (TypeScript) | Students (mobile) | `github.com/SahniNitish/campus-safety-hub` |
-| ~~User-App~~ | `/home/nitish/Desktop/Capstone-Project/User-App/` | React 19 (web) | ⚠️ Redundant — ignore | same remote as Dashboard |
+| App | Path | Tech | Who Uses It |
+|-----|------|------|-------------|
+| **Dashboard** | `Capstone-Project/Dashboard/` | React 19 (web) | Security staff |
+| **User-App** | `Capstone-Project/User-App/` | React Native + Expo (TypeScript) | Students (mobile) |
 
-**The `User-App/` in Capstone-Project is a leftover web copy — the real student app is the React Native Expo app in `Documents/campus-safety-hub/`.** Do not work on `User-App/` going forward.
+> The old redundant web-copy `User-App/` was deleted. The React Native app (formerly `campus-safety-hub/`) was renamed to `User-App/`.
 
 ---
 
-## Student App — Full Exploration (`campus-safety-hub/frontend/`)
+## User-App — Full Exploration (`User-App/frontend/`)
 
 ### Structure
 ```
@@ -395,8 +394,7 @@ Users must **log out and log back in** once after this fix for the backend token
 | App | Path |
 |-----|------|
 | Dashboard | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/Dashboard/frontend/` |
-| Student App | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/campus-safety-hub/frontend/` |
-| User-App | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/User-App/frontend/` (DEPRECATED) |
+| User-App (Mobile) | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/User-App/frontend/` |
 | session.md | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/session.md` |
 | AGENTS.md | `/Users/NitishSahni/Desktop/Acadia-project/Desktop/Capstone-Project/AGENTS.md` |
 

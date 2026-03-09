@@ -2,18 +2,15 @@
 
 ## Project Overview
 
-Acadia Safe is a comprehensive campus safety monitoring system built for Acadia University Security personnel. The project consists of two main applications that work together to provide real-time security monitoring and emergency response capabilities.
+Acadia Safe is a comprehensive campus safety monitoring system built for Acadia University. The project consists of two applications:
 
 **Applications:**
-- **Dashboard/** - Admin dashboard for security staff to monitor alerts, manage incidents, and coordinate responses
-- **Student App** (`/home/nitish/Documents/campus-safety-hub/`) - The real student-facing mobile app (React Native + Expo). **This is the correct student app.**
-- ~~**User-App/**~~ - Redundant web copy of the dashboard. **Ignore — do not work on this.**
-
-> **Note:** The `User-App/` directory inside Capstone-Project is outdated and redundant. The actual student app is the React Native Expo project at `/home/nitish/Documents/campus-safety-hub/`.
+- **Dashboard/** - Admin web dashboard for security staff to monitor alerts, manage incidents, and coordinate responses (React 19)
+- **User-App/** - Student-facing mobile app for reporting incidents, requesting escorts, and receiving alerts (React Native + Expo)
 
 ## Technology Stack
 
-### Frontend
+### Dashboard Frontend
 - **Framework:** React 19 (Create React App)
 - **Build Tool:** CRACO (Create React App Configuration Override)
 - **Styling:** Tailwind CSS 3.4 with custom design system
@@ -25,15 +22,28 @@ Acadia Safe is a comprehensive campus safety monitoring system built for Acadia 
 - **Charts:** Recharts
 - **Maps:** Leaflet via react-leaflet
 - **Notifications:** Sonner (toast notifications)
-- **Package Manager:** Yarn 1.22.22
 
-### Backend
+### User-App (Mobile)
+- **Framework:** React Native 0.81.5 + Expo 54
+- **Language:** TypeScript
+- **Navigation:** Expo Router v6 (Stack + Tabs + Modals)
+- **Auth:** Firebase Auth (Email/Password)
+- **API Client:** Axios
+- **Storage:** AsyncStorage
+
+### Dashboard Backend
 - **Framework:** FastAPI 0.110.1 (Python)
 - **Server:** Uvicorn 0.25.0
 - **Database:** MongoDB (via Motor 3.3.1 async driver)
 - **Authentication:** Firebase Admin SDK
 - **Data Validation:** Pydantic v2
 - **CORS:** Starlette CORS middleware
+
+### User-App Backend
+- **Framework:** FastAPI (Python)
+- **Server:** Uvicorn
+- **Database:** MongoDB
+- **Firebase Bridge:** Firebase Admin SDK (mirrors SOS to Firestore for Dashboard real-time updates)
 
 ### External Services
 - **Authentication:** Firebase Auth (Email/Password)
@@ -45,7 +55,7 @@ Acadia Safe is a comprehensive campus safety monitoring system built for Acadia 
 
 ```
 Capstone-Project/
-├── Dashboard/                          # Admin dashboard application
+├── Dashboard/                          # Admin web dashboard
 │   ├── frontend/                       # React frontend
 │   │   ├── src/
 │   │   │   ├── components/
@@ -53,245 +63,148 @@ Capstone-Project/
 │   │   │   │   ├── layout/            # Layout components (Sidebar, Header, DashboardLayout)
 │   │   │   │   └── dashboard/         # Dashboard-specific components (CampusMap)
 │   │   │   ├── pages/                 # Page components (9 pages)
-│   │   │   │   ├── LoginPage.jsx
-│   │   │   │   ├── DashboardPage.jsx
-│   │   │   │   ├── AlertsPage.jsx
-│   │   │   │   ├── IncidentsPage.jsx
-│   │   │   │   ├── EscortsPage.jsx
-│   │   │   │   ├── BroadcastPage.jsx
-│   │   │   │   ├── AnalyticsPage.jsx
-│   │   │   │   ├── UsersPage.jsx
-│   │   │   │   └── SettingsPage.jsx
 │   │   │   ├── lib/                   # Utilities and configurations
-│   │   │   │   ├── firebase.js        # Firebase initialization
-│   │   │   │   ├── AuthContext.js     # Authentication context
-│   │   │   │   └── utils.js           # Utility functions
 │   │   │   ├── hooks/                 # Custom React hooks
 │   │   │   ├── App.js                 # Main App component with routing
-│   │   │   ├── index.js               # Entry point
-│   │   │   └── index.css              # Global styles + Tailwind
-│   │   ├── plugins/                   # Custom webpack plugins
-│   │   │   ├── visual-edits/          # Visual editing support
-│   │   │   └── health-check/          # Health check endpoints
-│   │   ├── public/
-│   │   │   └── index.html
+│   │   │   └── index.js               # Entry point
 │   │   ├── package.json
-│   │   ├── craco.config.js            # CRA customization
-│   │   ├── tailwind.config.js         # Tailwind configuration
-│   │   ├── components.json            # shadcn/ui config
-│   │   └── jsconfig.json
+│   │   ├── craco.config.js
+│   │   └── tailwind.config.js
 │   ├── backend/                        # FastAPI backend
 │   │   ├── server.py                  # Main FastAPI application
-│   │   └── requirements.txt           # Python dependencies
-│   ├── tests/                         # Python test directory
-│   ├── memory/                        # Project documentation
-│   │   └── PRD.md                     # Product Requirements Document
-│   ├── test_reports/                  # Test execution reports
-│   ├── .emergent/                     # Emergent AI configuration
-│   ├── design_guidelines.json         # Design system specification
-│   ├── backend_test.py                # Backend API test suite
-│   ├── backend_test_results.json      # Latest test results
-│   ├── test_result.md                 # Testing protocol and results
-│   └── .gitignore
+│   │   └── requirements.txt
+│   └── tests/
 │
-└── User-App/                          # Student-facing application
-    └── (Identical structure to Dashboard/)
+└── User-App/                           # Student mobile app (React Native + Expo)
+    ├── frontend/
+    │   ├── app/                        # Expo Router screens
+    │   │   ├── index.tsx               # Splash / auth redirect
+    │   │   ├── login.tsx               # Login screen
+    │   │   ├── signup.tsx              # Sign up screen
+    │   │   ├── sos.tsx                 # SOS emergency screen
+    │   │   ├── incident-report.tsx     # Report an incident
+    │   │   ├── escort-request.tsx      # Request safe-walk escort
+    │   │   ├── friend-walk.tsx         # Friend walk feature
+    │   │   ├── emergency-contacts.tsx  # Emergency contacts
+    │   │   ├── _layout.tsx             # Root layout
+    │   │   └── (tabs)/                 # Bottom tab navigator
+    │   │       ├── index.tsx           # Home tab
+    │   │       ├── alerts.tsx          # View alerts tab
+    │   │       ├── map.tsx             # Campus map tab
+    │   │       └── profile.tsx         # Profile tab
+    │   ├── src/
+    │   │   ├── components/             # Button, Input, Card, LoadingSpinner
+    │   │   ├── constants/theme.ts      # Colors, spacing, campus coords
+    │   │   ├── context/AuthContext.tsx  # Firebase auth + AsyncStorage token
+    │   │   ├── firebase/config.ts      # Firebase init
+    │   │   └── services/api.ts         # Axios client for backend
+    │   ├── app.json
+    │   └── package.json
+    ├── backend/
+    │   ├── server.py                   # Campus backend (port 8001)
+    │   └── requirements.txt
+    └── tests/
 ```
 
 ## Build and Development Commands
 
-### Frontend (Dashboard or User-App)
+### Dashboard Frontend
 
 ```bash
-cd Dashboard/frontend  # or User-App/frontend
+cd Dashboard/frontend
 
 # Install dependencies
-yarn install
+npm install --legacy-peer-deps
 
-# Start development server (runs on http://localhost:3000)
-yarn start
+# Start development server (http://localhost:3000)
+npm start
 
 # Build for production
-yarn build
-
-# Run tests
-yarn test
+npm run build
 ```
 
-### Backend (Dashboard or User-App)
+### Dashboard Backend
 
 ```bash
-cd Dashboard/backend  # or User-App/backend
+cd Dashboard/backend
 
-# Create virtual environment (recommended)
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run development server
+# Run development server (http://localhost:8000)
 uvicorn server:app --reload --port 8000
-
-# Run with specific host
-uvicorn server:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Backend Testing
+### User-App (Mobile)
 
 ```bash
-cd Dashboard  # or User-App
+cd User-App/frontend
 
-# Run the comprehensive API test suite
-python backend_test.py
+# Install dependencies
+npm install
+
+# Start Expo dev server (http://localhost:8081)
+npx expo start
+```
+
+### User-App Backend
+
+```bash
+cd User-App/backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server (http://localhost:8001)
+uvicorn server:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ## Environment Configuration
 
-### Frontend Environment Variables
-
-Create `Dashboard/frontend/.env` or `User-App/frontend/.env`:
+### Dashboard Frontend `.env`
 
 ```bash
-# Backend API URL
 REACT_APP_BACKEND_URL=http://localhost:8000/api
-
-# Optional: Enable dev features
-ENABLE_HEALTH_CHECK=true
 ```
 
-### Firebase Configuration
+### Dashboard Backend `.env`
 
-Firebase is configured in `Dashboard/frontend/src/lib/firebase.js` and `User-App/frontend/src/lib/firebase.js`:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "AIzaSyDt5YlJ_ZgO0aswJXTtCqBJelwLDQfbc2A",
-  authDomain: "acadia-campus-hub.firebaseapp.com",
-  projectId: "acadia-campus-hub",
-  storageBucket: "acadia-campus-hub.firebasestorage.app",
-  messagingSenderId: "178102066314",
-  appId: "1:178102066314:web:bd5fa015f3a0a86ec7a173",
-  measurementId: "G-EBRTYXV4N4"
-};
-```
-
-**Project:** acadia-campus-hub  
-**Services:** Authentication, Firestore Database, Analytics
-
-### Backend Environment Variables
-
-**Dashboard backend** (`Dashboard/backend/.env`):
-```bash
-# MongoDB Connection
-MONGO_URL=mongodb+srv://username:password@cluster.mongodb.net/database_name
-DB_NAME=acadia_safe
-
-# CORS Origins (comma-separated for multiple origins)
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-```
-
-**Campus backend** (`Documents/campus-safety-hub/backend/.env`):
 ```bash
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=acadia_safe
+CORS_ORIGINS=http://localhost:3000
+```
 
-# Firebase service account — enables SOS→Dashboard bridge and Firestore broadcasts→Student App
-# Generate from: Firebase Console → acadia-campus-hub → Project Settings → Service Accounts
-# Paste as single-line JSON:
+### User-App Backend `.env`
+
+```bash
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=acadia_safe
+# Firebase service account — enables SOS→Dashboard bridge
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"acadia-campus-hub",...}
 ```
 
-> Without `FIREBASE_SERVICE_ACCOUNT_JSON`, the campus backend runs normally (MongoDB only) — the Dashboard bridge is simply disabled.
+## Firebase Projects
 
-## Code Style Guidelines
+| App | Project ID | Auth Domain |
+|-----|-----------|-------------|
+| Dashboard | `acadia-campus-hub` | `acadia-campus-hub.firebaseapp.com` |
+| User-App | `acadia-safety` | `acadia-safety.firebaseapp.com` |
 
-### JavaScript/React Conventions
+## Dashboard API Endpoints
 
-1. **Component Exports:**
-   - Pages MUST use default exports: `export default function PageName() {...}`
-   - Components MUST use named exports: `export const ComponentName = ...`
-
-2. **Import Order:**
-   - React imports first
-   - Third-party libraries second
-   - Local components third
-   - Relative imports using `@/` alias for src directory
-
-3. **Styling:**
-   - Use Tailwind CSS utility classes
-   - Custom CSS variables defined in `index.css`
-   - Follow design system colors (Navy theme)
-   - All interactive elements MUST have a `data-testid` attribute
-
-4. **Naming Conventions:**
-   - Components: PascalCase (e.g., `AlertCard.jsx`)
-   - Hooks: camelCase with `use` prefix (e.g., `useAuth.js`)
-   - Utilities: camelCase (e.g., `utils.js`)
-
-### Python/FastAPI Conventions
-
-1. **Model Definitions:**
-   - Use Pydantic v2 BaseModel with `ConfigDict(extra="ignore")`
-   - UUID fields use: `default_factory=lambda: str(uuid.uuid4())`
-   - Timestamps use ISO format strings
-
-2. **Route Organization:**
-   - All routes under `/api` prefix using APIRouter
-   - Consistent response models
-   - Proper HTTP exception handling
-
-## Testing Strategy
-
-### Backend Testing
-
-- **Test File:** `backend_test.py` - Comprehensive API test suite
-- **Test Coverage:** 11 API endpoints tested
-  - Health checks
-  - CRUD operations for Alerts, Incidents, Escorts
-  - User and Staff management
-  - Broadcast functionality
-  - Demo data seeding
-- **Test Results:** Stored in `backend_test_results.json`
-
-### Testing Protocol
-
-The project uses a structured testing protocol documented in `test_result.md`:
-- Main agent and testing agent communication format
-- Task tracking with implementation status
-- Test history and status updates
-- Stuck task identification
-
-## Design System
-
-### Color Palette
-- **Primary Navy:** `#0d1b2a` (sidebar, primary actions)
-- **Navy 800:** `#1b263b` (hover states)
-- **Navy 700:** `#415a77` (secondary elements)
-- **Background Light:** `#f7fafc` (main content area)
-- **Status Colors:**
-  - Danger: `#e53e3e` (emergency alerts)
-  - Safe: `#38a169` (success states)
-  - Warning: `#ecc94b` (caution states)
-  - Info: `#3182ce` (information)
-
-### Typography
-- **Primary Font:** Inter (weights: 400, 500, 700, 900)
-- **Monospace Font:** JetBrains Mono (timestamps, IDs, coordinates)
-
-### UI Patterns
-- Tactical UI aesthetic: clean lines, high contrast, information density
-- Bento Grid layout for dashboard widgets
-- Card-based content organization
-- Sidebar navigation (fixed 260px width)
-
-## Backend API Endpoints
-
-All endpoints are prefixed with `/api`:
+All endpoints prefixed with `/api`:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/` | Root message |
 | GET | `/api/health` | Health check |
 | GET | `/api/alerts` | List all alerts |
 | POST | `/api/alerts` | Create new alert |
@@ -307,52 +220,46 @@ All endpoints are prefixed with `/api`:
 | POST | `/api/broadcasts` | Create new broadcast |
 | POST | `/api/seed-demo-data` | Seed demo data |
 
-## Security Considerations
+## Code Style Guidelines
 
-1. **Authentication:** Firebase Auth handles user authentication
-2. **Authorization:** Role-based access (officer, supervisor, admin)
-3. **CORS:** Configured via environment variables
-4. **Data Validation:** Pydantic models validate all inputs
-5. **Secrets:** All sensitive data in environment variables, never committed
-6. **Firestore Rules:** Should be configured for production
+### JavaScript/React Conventions
 
-## Development Notes
+1. **Component Exports:**
+   - Pages MUST use default exports: `export default function PageName() {...}`
+   - Components MUST use named exports: `export const ComponentName = ...`
 
-### Key Dependencies
+2. **Styling:**
+   - Use Tailwind CSS utility classes
+   - All interactive elements MUST have a `data-testid` attribute
 
-**Frontend:**
-- React 19 with modern features
-- Radix UI primitives for accessibility
-- dnd-kit for drag-and-drop (Kanban boards)
-- date-fns for date formatting
-- Axios for HTTP requests
+3. **Naming Conventions:**
+   - Components: PascalCase (e.g., `AlertCard.jsx`)
+   - Hooks: camelCase with `use` prefix (e.g., `useAuth.js`)
 
-**Backend:**
-- Motor for async MongoDB operations
-- Firebase Admin for server-side Firebase operations
-- Pytest for testing
-- Black, Flake8, MyPy for code quality
+### Python/FastAPI Conventions
 
-### Known Limitations
+1. **Model Definitions:**
+   - Use Pydantic v2 BaseModel with `ConfigDict(extra="ignore")`
+   - UUID fields use: `default_factory=lambda: str(uuid.uuid4())`
 
-1. ~~Both Dashboard and User-App currently share identical code~~ — User-App is deprecated; real student app is React Native at `Documents/campus-safety-hub/`
-2. Real-time push notifications (FCM) not yet implemented in student app
-3. Sound alerts for emergencies pending
-4. No real map library in student app (react-native-maps not installed)
-5. Escort officer assignment is mocked (5-sec fake timer, not real API polling)
-6. Dashboard ↔ Student App bridge requires Firebase service account key in campus backend `.env`
+2. **Route Organization:**
+   - All routes under `/api` prefix using APIRouter
 
-## Deployment
+## Design System
 
-The application is configured for deployment on Emergent platform (as indicated by `.emergent/emergent.yml`). For other platforms:
+### Color Palette
+- **Primary Navy:** `#0d1b2a` (sidebar, primary actions)
+- **Status Colors:** Danger `#e53e3e`, Safe `#38a169`, Warning `#ecc94b`, Info `#3182ce`
 
-1. **Frontend:** Build produces static files in `build/` directory
-2. **Backend:** Can be deployed to any ASGI-compatible server
-3. **Database:** Requires MongoDB instance
-4. **Firebase:** Requires Firebase project configuration
+### Typography
+- **Primary Font:** Inter (weights: 400, 500, 700, 900)
+- **Monospace Font:** JetBrains Mono (timestamps, IDs)
 
-## Additional Resources
+## All Dev Services
 
-- **PRD:** `Dashboard/memory/PRD.md` - Product Requirements Document
-- **Design Guidelines:** `Dashboard/design_guidelines.json` - Complete design specification
-- **Test Reports:** `Dashboard/test_reports/` - Historical test execution data
+| Service | URL | Command |
+|---------|-----|---------|
+| Dashboard frontend | http://localhost:3000 | `cd Dashboard/frontend && npm start` |
+| Dashboard backend | http://localhost:8000 | `cd Dashboard/backend && uvicorn server:app --reload --port 8000` |
+| User-App (Expo) | http://localhost:8081 | `cd User-App/frontend && npx expo start` |
+| User-App backend | http://localhost:8001 | `cd User-App/backend && uvicorn server:app --reload --host 0.0.0.0 --port 8001` |
