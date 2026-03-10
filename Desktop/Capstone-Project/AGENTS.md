@@ -27,7 +27,9 @@ Acadia Safe is a comprehensive campus safety monitoring system built for Acadia 
 - **Framework:** React Native 0.81.5 + Expo 54
 - **Language:** TypeScript
 - **Navigation:** Expo Router v6 (Stack + Tabs + Modals)
-- **Auth:** Firebase Auth (Email/Password)
+- **Auth:** Firebase Auth (Email/Password) + Campus Backend JWT (dual auth)
+- **Maps:** react-native-maps (Apple Maps on iOS, web-safe fallback)
+- **Location:** expo-location (foreground permissions, watchPositionAsync)
 - **API Client:** Axios
 - **Storage:** AsyncStorage
 
@@ -83,19 +85,22 @@ Capstone-Project/
     │   │   ├── signup.tsx              # Sign up screen
     │   │   ├── sos.tsx                 # SOS emergency screen
     │   │   ├── incident-report.tsx     # Report an incident
-    │   │   ├── escort-request.tsx      # Request safe-walk escort
-    │   │   ├── friend-walk.tsx         # Friend walk feature
+    │   │   ├── escort-request.tsx      # Request safe-walk escort (map destination picker + polling)
+    │   │   ├── friend-walk.tsx         # Friend walk (live map + continuous location tracking)
     │   │   ├── emergency-contacts.tsx  # Emergency contacts
+    │   │   ├── my-reports.tsx          # User's incident report history
+    │   │   ├── safety-tips.tsx         # Campus safety tips
+    │   │   ├── about.tsx              # App info screen
     │   │   ├── _layout.tsx             # Root layout
     │   │   └── (tabs)/                 # Bottom tab navigator
     │   │       ├── index.tsx           # Home tab
     │   │       ├── alerts.tsx          # View alerts tab
-    │   │       ├── map.tsx             # Campus map tab
-    │   │       └── profile.tsx         # Profile tab
+    │   │       ├── map.tsx             # Campus map tab (real Apple Maps)
+    │   │       └── profile.tsx         # Profile tab (backend persistence)
     │   ├── src/
-    │   │   ├── components/             # Button, Input, Card, LoadingSpinner
+    │   │   ├── components/             # Button, Input, Card, LoadingSpinner, CampusMap
     │   │   ├── constants/theme.ts      # Colors, spacing, campus coords
-    │   │   ├── context/AuthContext.tsx  # Firebase auth + AsyncStorage token
+    │   │   ├── context/AuthContext.tsx  # Firebase + backend dual auth
     │   │   ├── firebase/config.ts      # Firebase init
     │   │   └── services/api.ts         # Axios client for backend
     │   ├── app.json

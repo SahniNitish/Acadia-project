@@ -452,4 +452,107 @@ Users must **log out and log back in** once after this fix for the backend token
 
 ---
 
-*Last updated: 2026-03-03*
+## Session: 2026-03-10 — User-App Major Feature Fix (7 Steps)
+
+### Goal
+Fix all partially-implemented User-App frontend features. Backend API endpoints already existed — issues were purely frontend.
+
+### What Was Implemented
+
+#### Step 1: Install react-native-maps
+- `npx expo install react-native-maps` — Apple Maps works out of the box on iOS (no API key needed)
+
+#### Step 2: Reusable CampusMap Component
+- **New file:** `src/components/CampusMap.tsx`
+- Wraps `<MapView>` centered on Acadia campus (45.0875, -64.3665)
+- Props: `locations` (markers), `showUserLocation`, `onMapPress`, `selectedLocation`, `userTrackingLocation`
+- Web-safe: uses `Platform.OS` conditional `require()` — shows Google Maps fallback on web
+
+#### Step 3: Fix Map Tab
+- **Modified:** `app/(tabs)/map.tsx`
+- Replaced grey placeholder + "Open in Google Maps" button with real `<CampusMap>` showing colored markers
+- Kept existing filter chips, location list, distance calculation, and "Get Directions" button
+- Removed unused placeholder styles
+
+#### Step 4: Fix Friend Walk — Map + Continuous Location Tracking
+- **Modified:** `app/friend-walk.tsx`
+- Replaced grey placeholder with `<CampusMap>` showing user's live location
+- Added `useEffect` with `Location.watchPositionAsync()` when walk is active:
+  - Updates every 15 seconds or 10 meters
+  - Calls `friendWalkAPI.updateLocation(walkId, { location_lat, location_lng })` (endpoint existed in api.ts but was never called)
+  - Cleans up subscription on walk end/unmount
+
+#### Step 5: Fix Escort Request — Real Destination + Polling
+- **Modified:** `app/escort-request.tsx`
+- Added `<CampusMap onMapPress={...}>` for tap-to-pick destination selection
+- Uses tapped coordinates instead of hardcoded `(45.0880, -64.3670)`
+- Replaced fake 5-sec `setTimeout` + `escortAPI.assign()` with real polling:
+  - Polls `escortAPI.getActive()` every 5 seconds while waiting
+  - When `status === 'assigned'`, reads officer data from response
+  - Frontend no longer calls assign — that's the dashboard's job
+
+#### Step 6: Fix Profile — Backend Persistence
+- **Modified:** `src/context/AuthContext.tsx`
+- `updateUser()`: Now calls `authAPI.updateProfile()` (backend) alongside Firebase `updateProfile()`
+- `refreshUser()`: Pulls profile from `authAPI.getMe()` as source of truth, falls back to Firebase
+
+#### Step 7: Fix Profile — Wire Toggles + Stub Screens
+- **Modified:** `app/(tabs)/profile.tsx`
+  - Location toggle: calls `Location.requestForegroundPermissionsAsync()` on enable
+  - Notification toggle: shows alert explaining status
+  - Menu items wired to new screens
+- **New file:** `app/my-reports.tsx` — Fetches `incidentAPI.getMy()`, displays list of user's incident reports
+- **New file:** `app/safety-tips.tsx` — Static screen with 8 campus safety tips
+- **New file:** `app/about.tsx` — App info, version, features list, contact
+
+### Files Changed Summary
+
+| File | Action |
+|------|--------|
+| `src/components/CampusMap.tsx` | New — reusable map component (web-safe) |
+| `app/(tabs)/map.tsx` | Modified — real map with markers |
+| `app/friend-walk.tsx` | Modified — live map + location tracking |
+| `app/escort-request.tsx` | Modified — map destination picker + polling |
+| `src/context/AuthContext.tsx` | Modified — backend profile persistence |
+| `app/(tabs)/profile.tsx` | Modified — wired toggles + navigation |
+| `app/my-reports.tsx` | New — incident history screen |
+| `app/safety-tips.tsx` | New — static tips screen |
+| `app/about.tsx` | New — app info screen |
+
+### Packages Installed
+- `react-native-maps` (via `npx expo install`)
+
+---
+
+## Updated Screen Status
+
+| Screen | File | Status | Notes |
+|--------|------|--------|-------|
+| Splash | `app/index.tsx` | Done | Checks auth, seeds data, redirects |
+| Login | `app/login.tsx` | Done | Firebase auth, domain validation |
+| Signup | `app/signup.tsx` | Done | Full validation, @acadiau.ca enforced |
+| SOS | `app/sos.tsx` | Done | Type select, countdown, location, API |
+| Incident Report | `app/incident-report.tsx` | Done | Type, location, description, photos, anonymous |
+| Emergency Contacts | `app/emergency-contacts.tsx` | Done | Hardcoded list, tap to call |
+| Home tab | `app/(tabs)/index.tsx` | Done | SOS button, quick actions, latest alert |
+| Alerts tab | `app/(tabs)/alerts.tsx` | Done | List + detail modal, pull-to-refresh |
+| **Map tab** | `app/(tabs)/map.tsx` | **Done** | Real map with markers, filters, directions |
+| **Escort Request** | `app/escort-request.tsx` | **Done** | Map destination picker + polling |
+| **Friend Walk** | `app/friend-walk.tsx` | **Done** | Live map + continuous location tracking |
+| **Profile tab** | `app/(tabs)/profile.tsx` | **Done** | Backend persistence, wired toggles |
+| **My Reports** | `app/my-reports.tsx` | **Done** | Fetches incident history |
+| **Safety Tips** | `app/safety-tips.tsx` | **Done** | 8 campus safety tips |
+| **About** | `app/about.tsx` | **Done** | App info screen |
+
+## Remaining Issues
+
+| Priority | Issue |
+|----------|-------|
+| Medium | Push notifications not possible (Expo Notifications not installed) |
+| Medium | Firebase config hardcoded (not in .env) |
+| Low | `zustand` installed but never used |
+| Low | Dashboard "Forgot Password" button has no onClick |
+
+---
+
+*Last updated: 2026-03-10*
