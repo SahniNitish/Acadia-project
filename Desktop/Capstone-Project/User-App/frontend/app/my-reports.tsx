@@ -3,28 +3,31 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { incidentAPI } from '../src/services/api';
+import { useAuth } from '../src/context/AuthContext';
+import { getMyIncidents } from '../src/services/firestore';
 import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../src/constants/theme';
 import Card from '../src/components/Card';
 import LoadingSpinner from '../src/components/LoadingSpinner';
 
 export default function MyReportsScreen() {
   const router = useRouter();
+  const { firebaseUser } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
+      if (!firebaseUser) return;
       try {
-        const res = await incidentAPI.getMy();
-        setReports(res.data);
+        const data = await getMyIncidents(firebaseUser.uid);
+        setReports(data);
       } catch (err) {
         console.log('Error fetching reports:', err);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [firebaseUser]);
 
   if (loading) return <LoadingSpinner fullScreen message="Loading reports..." />;
 
@@ -50,13 +53,13 @@ export default function MyReportsScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Card style={styles.card}>
-              <Text style={styles.reportType}>{item.incident_type || 'Incident'}</Text>
+              <Text style={styles.reportType}>{item.type || 'Incident'}</Text>
               <Text style={styles.reportDesc} numberOfLines={2}>
                 {item.description}
               </Text>
               <View style={styles.meta}>
                 <Text style={styles.metaText}>
-                  {new Date(item.created_at).toLocaleDateString()}
+                  {new Date(item.createdAt).toLocaleDateString()}
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: item.status === 'resolved' ? COLORS.secondary : COLORS.warning }]}>
                   <Text style={styles.statusText}>{item.status || 'submitted'}</Text>

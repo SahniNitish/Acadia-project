@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/AuthContext';
@@ -37,6 +37,42 @@ import {
 import { toast } from 'sonner';
 import { CampusMap } from '../components/dashboard/CampusMap';
 
+// Play a 3-beep alert sound using the Web Audio API
+const playAlertSound = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const playBeep = (startTime) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, startTime);
+      gain.gain.setValueAtTime(0.4, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+      osc.start(startTime);
+      osc.stop(startTime + 0.25);
+    };
+    playBeep(ctx.currentTime);
+    playBeep(ctx.currentTime + 0.35);
+    playBeep(ctx.currentTime + 0.7);
+  } catch (e) {
+    console.log('Audio not supported:', e);
+  }
+};
+
+// Show a browser OS notification
+const showBrowserNotification = (alert) => {
+  if (Notification.permission === 'granted') {
+    new Notification('🚨 New SOS Alert', {
+      body: `${alert.studentName || 'Student'} needs help — ${alert.location || 'Campus'}`,
+      icon: '/favicon.ico',
+      tag: alert.id,
+      requireInteraction: true,
+    });
+  }
+};
+
 export default function AlertsPage() {
   const { userData, user } = useAuth();
   const [alerts, setAlerts] = useState([]);
@@ -46,12 +82,21 @@ export default function AlertsPage() {
   const [viewMode, setViewMode] = useState('card');
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notifPermission, setNotifPermission] = useState(Notification.permission);
+  const prevActiveCountRef = useRef(0);
   const [stats, setStats] = useState({
     total: 0,
     avgResponseTime: '3.2 min',
     resolved: 0,
     active: 0
   });
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => setNotifPermission(perm));
+    }
+  }, []);
 
   useEffect(() => {
     const alertsQuery = query(
@@ -62,17 +107,34 @@ export default function AlertsPage() {
     const unsubscribe = onSnapshot(alertsQuery, (snapshot) => {
       const alertsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAlerts(alertsData);
-      
+
       // Calculate stats
+      const newAlerts = alertsData.filter(a => a.status === 'new');
       const active = alertsData.filter(a => a.status === 'new' || a.status === 'in_progress').length;
       const resolved = alertsData.filter(a => a.status === 'resolved').length;
+
+      // Sound + notification when new 'new' alerts arrive
+      if (!snapshot.metadata.fromCache) {
+        const newCount = newAlerts.length;
+        if (newCount > prevActiveCountRef.current) {
+          playAlertSound();
+          // Notify for each brand-new alert
+          snapshot.docChanges().forEach(change => {
+            if (change.type === 'added' && change.doc.data().status === 'new') {
+              showBrowserNotification({ id: change.doc.id, ...change.doc.data() });
+            }
+          });
+        }
+        prevActiveCountRef.current = newCount;
+      }
+
       setStats(prev => ({
         ...prev,
         total: alertsData.length,
         active,
         resolved
       }));
-      
+
       setLoading(false);
     }, (error) => {
       console.error('Error fetching alerts:', error);
@@ -169,6 +231,21 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-6" data-testid="alerts-page">
+      {/* Notification permission banner */}
+      {notifPermission === 'denied' && (
+        <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          <Siren className="w-4 h-4 flex-shrink-0" />
+          <span>Browser notifications are blocked. Enable them in your browser settings to receive SOS alerts when this tab is in the background.</span>
+        </div>
+      )}
+      {notifPermission === 'default' && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          <Siren className="w-4 h-4 flex-shrink-0" />
+          <span>Enable browser notifications to get OS-level alerts for new SOS emergencies.</span>
+          <Button size="sm" className="ml-auto bg-[#0d1b2a]" onClick={() => Notification.requestPermission().then(p => setNotifPermission(p))}>Enable</Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

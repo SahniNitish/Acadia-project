@@ -83,6 +83,13 @@ const topLocations = [
   { name: 'Athletics Complex', incidents: 12 },
 ];
 
+const DATE_RANGE_LABELS = {
+  today: 'Today',
+  '7days': 'Last 7 Days',
+  '30days': 'Last 30 Days',
+  '90days': 'Last 90 Days',
+};
+
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('7days');
   const [stats, setStats] = useState({
@@ -99,6 +106,73 @@ export default function AnalyticsPage() {
     // In production, fetch real analytics data from Firestore
     setLoading(false);
   }, [dateRange]);
+
+  const handleExport = () => {
+    const now = new Date().toLocaleString();
+    const rangeLabel = DATE_RANGE_LABELS[dateRange] || dateRange;
+
+    const rows = [];
+
+    // Header
+    rows.push(['ACADIA SAFE — ANALYTICS REPORT']);
+    rows.push([`Date Range: ${rangeLabel}`]);
+    rows.push([`Generated: ${now}`]);
+    rows.push([]);
+
+    // Summary stats
+    rows.push(['SUMMARY']);
+    rows.push(['Metric', 'Value']);
+    rows.push(['Total SOS Alerts', stats.totalAlerts]);
+    rows.push(['Avg Response Time', stats.avgResponseTime]);
+    rows.push(['Incidents Reported', stats.incidentsReported]);
+    rows.push(['Escorts Completed', stats.escortsCompleted]);
+    rows.push(['Active Users', stats.activeUsers]);
+    rows.push(['Resolution Rate', stats.resolutionRate]);
+    rows.push([]);
+
+    // Activity over time
+    rows.push(['ACTIVITY OVER TIME']);
+    rows.push(['Day', 'Alerts', 'Incidents', 'Escorts']);
+    incidentsOverTime.forEach(r => rows.push([r.name, r.alerts, r.incidents, r.escorts]));
+    rows.push([]);
+
+    // Incident types
+    rows.push(['INCIDENT TYPE DISTRIBUTION']);
+    rows.push(['Type', 'Count']);
+    incidentTypes.forEach(r => rows.push([r.name, r.value]));
+    rows.push([]);
+
+    // Hourly activity
+    rows.push(['HOURLY ACTIVITY PATTERN']);
+    rows.push(['Hour', 'Incident Count']);
+    hourlyActivity.forEach(r => rows.push([r.hour, r.count]));
+    rows.push([]);
+
+    // Response time
+    rows.push(['RESPONSE TIME TREND']);
+    rows.push(['Period', 'Avg Response (min)', 'Target (min)']);
+    responseTimeTrend.forEach(r => rows.push([r.date, r.time, r.target]));
+    rows.push([]);
+
+    // Top locations
+    rows.push(['TOP INCIDENT LOCATIONS']);
+    rows.push(['Location', 'Incident Count']);
+    topLocations.forEach(r => rows.push([r.name, r.incidents]));
+
+    // Build CSV string
+    const csv = rows
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Trigger download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `acadia-safe-analytics-${dateRange}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }) => (
     <Card className="p-4">
@@ -139,9 +213,9 @@ export default function AnalyticsPage() {
               <SelectItem value="90days">Last 90 Days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2" onClick={handleExport}>
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </Button>
         </div>
       </div>

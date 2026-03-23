@@ -19,12 +19,16 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="signup" />
+          <Stack.Screen name="verify-email" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal' }} />
           <Stack.Screen name="incident-report" options={{ presentation: 'modal' }} />
           <Stack.Screen name="escort-request" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="friend-walk" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="shuttle" options={{ presentation: 'modal' }} />
           <Stack.Screen name="emergency-contacts" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="my-reports" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="safety-tips" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="about" options={{ presentation: 'modal' }} />
         </Stack>
       </AuthProvider>
     </GestureHandlerRootView>

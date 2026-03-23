@@ -1,14 +1,15 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
-import { 
-  LayoutDashboard, 
-  Bell, 
-  FileText, 
-  Footprints, 
-  Megaphone, 
-  BarChart3, 
-  Users, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Bell,
+  FileText,
+  Footprints,
+  Bus,
+  Megaphone,
+  BarChart3,
+  Users,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ const navItems = [
   { path: '/alerts', icon: Bell, label: 'Alerts', badge: true },
   { path: '/incidents', icon: FileText, label: 'Incidents' },
   { path: '/escorts', icon: Footprints, label: 'Escorts' },
+  { path: '/shuttles', icon: Bus, label: 'Shuttles' },
   { path: '/broadcast', icon: Megaphone, label: 'Broadcast' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/users', icon: Users, label: 'Users' },

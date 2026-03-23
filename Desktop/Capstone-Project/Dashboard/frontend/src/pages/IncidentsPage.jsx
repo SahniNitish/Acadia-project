@@ -371,10 +371,18 @@ export default function IncidentsPage() {
                         )}
                       </td>
                       <td className="text-sm text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatTimeAgo(incident.createdAt)}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatTimeAgo(incident.createdAt)}
+                          </span>
+                          {incident.photos && incident.photos.length > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-blue-600">
+                              <Image className="w-3 h-3" />
+                              {incident.photos.length} photo{incident.photos.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <Badge className={getStatusColor(incident.status)}>
@@ -466,6 +474,22 @@ export default function IncidentsPage() {
                 <p className="text-sm text-slate-500 mb-2">Description</p>
                 <p className="p-3 bg-slate-50 rounded-lg">{selectedIncident.description || 'No description provided'}</p>
               </div>
+              {selectedIncident.photos && selectedIncident.photos.length > 0 && (
+                <div>
+                  <p className="text-sm text-slate-500 mb-2">Photos ({selectedIncident.photos.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedIncident.photos.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={url}
+                          alt={`Incident photo ${i + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border border-slate-200 hover:opacity-80 cursor-pointer"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2 pt-4">
                 <Button variant="outline" onClick={() => setSelectedIncident(null)} className="flex-1">
                   Close

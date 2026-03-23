@@ -14,7 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { sosAPI } from '../src/services/api';
+import * as Haptics from 'expo-haptics';
+import { useAuth } from '../src/context/AuthContext';
+import { createSOS, cancelSOS } from '../src/services/firestore';
 import { COLORS, GRADIENTS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../src/constants/theme';
 
 const { width, height } = Dimensions.get('window');
@@ -30,12 +32,13 @@ const EMERGENCY_TYPES = [
 
 export default function SOSScreen() {
   const router = useRouter();
+  const { user, firebaseUser } = useAuth();
   const [state, setState] = useState<SOSState>('type');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [location, setLocation] = useState<any>(null);
   const [sosId, setSosId] = useState<string | null>(null);
-  
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const countdownScale = useRef(new Animated.Value(1)).current;
 
@@ -45,36 +48,17 @@ export default function SOSScreen() {
 
   useEffect(() => {
     if (state === 'countdown') {
-      // Pulsing animation for countdown
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.3,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1.3, duration: 400, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         ])
       ).start();
 
-      // Countdown animation
       const timer = setInterval(() => {
-        // Scale animation for number change
         Animated.sequence([
-          Animated.timing(countdownScale, {
-            toValue: 1.2,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(countdownScale, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
+          Animated.timing(countdownScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+          Animated.timing(countdownScale, { toValue: 1, duration: 100, useNativeDriver: true }),
         ]).start();
 
         setCountdown((prev) => {
@@ -96,10 +80,7 @@ export default function SOSScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({});
-        setLocation({
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-        });
+        setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       }
     } catch (error) {
       console.log('Error getting location:', error);
@@ -112,13 +93,24 @@ export default function SOSScreen() {
   };
 
   const sendSOS = async () => {
+    if (!firebaseUser) {
+      Alert.alert('Error', 'You must be logged in to send an SOS.');
+      setState('type');
+      return;
+    }
     try {
-      const response = await sosAPI.create({
-        location_lat: location?.lat || 45.0875,
-        location_lng: location?.lng || -64.3665,
-        alert_type: selectedType || undefined,
-      });
-      setSosId(response.data.id);
+      const docId = await createSOS(
+        firebaseUser.uid,
+        user,
+        location?.lat || 45.0875,
+        location?.lng || -64.3665,
+        selectedType || undefined,
+      );
+      setSosId(docId);
+      // Play 3 urgent haptic pulses to simulate beeping
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error), 400);
+      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error), 800);
       setState('sent');
     } catch (error) {
       Alert.alert('Error', 'Failed to send SOS alert. Please call security directly.');
@@ -126,10 +118,10 @@ export default function SOSScreen() {
     }
   };
 
-  const cancelSOS = async () => {
+  const handleCancelSOS = async () => {
     if (sosId) {
       try {
-        await sosAPI.cancel(sosId);
+        await cancelSOS(sosId);
       } catch (error) {
         console.log('Error cancelling SOS:', error);
       }
@@ -207,29 +199,13 @@ export default function SOSScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        {/* Animated pulse circles */}
-        <Animated.View 
-          style={[
-            styles.pulseCircle,
-            { transform: [{ scale: pulseAnim }], opacity: 0.3 }
-          ]} 
-        />
-        <Animated.View 
-          style={[
-            styles.pulseCircle2,
-            { transform: [{ scale: pulseAnim }], opacity: 0.2 }
-          ]} 
-        />
+        <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }], opacity: 0.3 }]} />
+        <Animated.View style={[styles.pulseCircle2, { transform: [{ scale: pulseAnim }], opacity: 0.2 }]} />
 
         <SafeAreaView style={styles.countdownSafeArea}>
           <View style={styles.countdownContent}>
             <View style={styles.countdownCircle}>
-              <Animated.Text 
-                style={[
-                  styles.countdownNumber,
-                  { transform: [{ scale: countdownScale }] }
-                ]}
-              >
+              <Animated.Text style={[styles.countdownNumber, { transform: [{ scale: countdownScale }] }]}>
                 {countdown}
               </Animated.Text>
             </View>
@@ -240,10 +216,7 @@ export default function SOSScreen() {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => {
-                setState('type');
-                setCountdown(3);
-              }}
+              onPress={() => { setState('type'); setCountdown(3); }}
               activeOpacity={0.8}
             >
               <Text style={styles.cancelButtonText}>CANCEL</Text>
@@ -263,6 +236,10 @@ export default function SOSScreen() {
       end={{ x: 0.5, y: 1 }}
     >
       <SafeAreaView style={styles.sentSafeArea}>
+        {/* Minimize button — lets user go back to use other apps while waiting */}
+        <TouchableOpacity onPress={() => router.back()} style={styles.minimizeButton}>
+          <Ionicons name="close" size={28} color={COLORS.white} />
+        </TouchableOpacity>
         <View style={styles.sentContent}>
           <View style={styles.checkCircle}>
             <Ionicons name="checkmark" size={56} color={COLORS.white} />
@@ -283,11 +260,7 @@ export default function SOSScreen() {
           </View>
 
           <View style={styles.sentActions}>
-            <TouchableOpacity
-              style={styles.callSecurityButton}
-              onPress={callSecurity}
-              activeOpacity={0.9}
-            >
+            <TouchableOpacity style={styles.callSecurityButton} onPress={callSecurity} activeOpacity={0.9}>
               <LinearGradient
                 colors={GRADIENTS.red}
                 style={styles.callSecurityGradient}
@@ -299,11 +272,7 @@ export default function SOSScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.imSafeButton}
-              onPress={cancelSOS}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.imSafeButton} onPress={handleCancelSOS} activeOpacity={0.8}>
               <Ionicons name="checkmark-circle" size={22} color={COLORS.secondary} />
               <Text style={styles.imSafeText}>I'm Safe - Cancel Alert</Text>
             </TouchableOpacity>
@@ -317,16 +286,9 @@ export default function SOSScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  closeButton: {
-    alignSelf: 'flex-end',
-    padding: SPACING.md,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  closeButton: { alignSelf: 'flex-end', padding: SPACING.md },
   typeContent: {
     flex: 1,
     alignItems: 'center',
@@ -342,24 +304,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.lg,
   },
-  typeTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.white,
-    textAlign: 'center',
-  },
-  typeSubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: SPACING.xs,
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: SPACING.xl,
-    gap: SPACING.md,
-  },
+  typeTitle: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.white, textAlign: 'center' },
+  typeSubtitle: { fontSize: FONT_SIZE.sm, color: 'rgba(255,255,255,0.7)', marginTop: SPACING.xs },
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: SPACING.xl, gap: SPACING.md },
   typeButton: {
     width: (width - SPACING.lg * 3) / 2,
     backgroundColor: COLORS.white,
@@ -376,34 +323,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.sm,
   },
-  typeLabel: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  sosNowButton: {
-    marginTop: SPACING.xxl,
-    borderRadius: BORDER_RADIUS.full,
-    overflow: 'hidden',
-    ...SHADOWS.buttonRed,
-  },
-  sosNowGradient: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xxl,
-  },
-  sosNowText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.white,
-    letterSpacing: 1,
-  },
-  // Countdown styles
-  countdownSafeArea: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  typeLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, textAlign: 'center' },
+  sosNowButton: { marginTop: SPACING.xxl, borderRadius: BORDER_RADIUS.full, overflow: 'hidden', ...SHADOWS.buttonRed },
+  sosNowGradient: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.xxl },
+  sosNowText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.white, letterSpacing: 1 },
+  countdownSafeArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pulseCircle: {
     position: 'absolute',
     top: height / 2 - 150,
@@ -422,9 +346,7 @@ const styles = StyleSheet.create({
     borderRadius: 200,
     backgroundColor: COLORS.white,
   },
-  countdownContent: {
-    alignItems: 'center',
-  },
+  countdownContent: { alignItems: 'center' },
   countdownCircle: {
     width: 160,
     height: 160,
@@ -435,22 +357,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  countdownNumber: {
-    fontSize: 80,
-    fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.white,
-  },
-  countdownText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.white,
-    marginTop: SPACING.xl,
-  },
-  countdownSubtext: {
-    fontSize: FONT_SIZE.sm,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: SPACING.xs,
-  },
+  countdownNumber: { fontSize: 80, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.white },
+  countdownText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.semibold, color: COLORS.white, marginTop: SPACING.xl },
+  countdownSubtext: { fontSize: FONT_SIZE.sm, color: 'rgba(255,255,255,0.8)', marginTop: SPACING.xs },
   cancelButton: {
     backgroundColor: COLORS.white,
     paddingVertical: SPACING.md,
@@ -458,22 +367,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     marginTop: SPACING.xxl,
   },
-  cancelButtonText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.accent,
-    letterSpacing: 1,
-  },
-  // Sent styles
-  sentSafeArea: {
-    flex: 1,
-  },
-  sentContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.lg,
-  },
+  cancelButtonText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.accent, letterSpacing: 1 },
+  sentSafeArea: { flex: 1 },
+  minimizeButton: { alignSelf: 'flex-end', padding: SPACING.md },
+  sentContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg },
   checkCircle: {
     width: 100,
     height: 100,
@@ -483,16 +380,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.lg,
   },
-  sentTitle: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.white,
-  },
-  sentSubtitle: {
-    fontSize: FONT_SIZE.md,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: SPACING.xs,
-  },
+  sentTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.white },
+  sentSubtitle: { fontSize: FONT_SIZE.md, color: 'rgba(255,255,255,0.9)', marginTop: SPACING.xs },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,50 +392,14 @@ const styles = StyleSheet.create({
     width: '100%',
     ...SHADOWS.card,
   },
-  locationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#fed7d7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationInfo: {
-    flex: 1,
-    marginLeft: SPACING.md,
-  },
-  locationLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-  },
-  locationText: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.medium,
-    color: COLORS.textPrimary,
-    marginTop: 2,
-  },
-  sentActions: {
-    width: '100%',
-    marginTop: SPACING.xl,
-    gap: SPACING.md,
-  },
-  callSecurityButton: {
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    ...SHADOWS.buttonRed,
-  },
-  callSecurityGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-  },
-  callSecurityText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.white,
-    marginLeft: SPACING.sm,
-  },
+  locationIconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fed7d7', alignItems: 'center', justifyContent: 'center' },
+  locationInfo: { flex: 1, marginLeft: SPACING.md },
+  locationLabel: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  locationText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: COLORS.textPrimary, marginTop: 2 },
+  sentActions: { width: '100%', marginTop: SPACING.xl, gap: SPACING.md },
+  callSecurityButton: { borderRadius: BORDER_RADIUS.lg, overflow: 'hidden', ...SHADOWS.buttonRed },
+  callSecurityGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.md },
+  callSecurityText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.white, marginLeft: SPACING.sm },
   imSafeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -556,15 +409,6 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     ...SHADOWS.card,
   },
-  imSafeText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.secondary,
-    marginLeft: SPACING.sm,
-  },
-  securityNumber: {
-    fontSize: FONT_SIZE.sm,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: SPACING.xl,
-  },
+  imSafeText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.secondary, marginLeft: SPACING.sm },
+  securityNumber: { fontSize: FONT_SIZE.sm, color: 'rgba(255,255,255,0.8)', marginTop: SPACING.xl },
 });

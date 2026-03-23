@@ -5,13 +5,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
 import { COLORS, GRADIENTS, FONT_SIZE, FONT_WEIGHT, SPACING, BORDER_RADIUS } from '../src/constants/theme';
-import { seedData } from '../src/services/api';
 
 const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, firebaseUser, isLoading } = useAuth();
   const [seeding, setSeeding] = useState(true);
   const loadingWidth = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.8)).current;
@@ -46,21 +45,18 @@ export default function SplashScreen() {
   useEffect(() => {
     if (!isLoading && !seeding) {
       setTimeout(() => {
-        if (user) {
+        if (firebaseUser && !firebaseUser.emailVerified) {
+          router.replace('/verify-email');
+        } else if (user) {
           router.replace('/(tabs)');
         } else {
           router.replace('/login');
         }
       }, 500);
     }
-  }, [isLoading, seeding, user]);
+  }, [isLoading, seeding, user, firebaseUser]);
 
   const initApp = async () => {
-    try {
-      await seedData();
-    } catch (error) {
-      console.log('Seed error (may already exist):', error);
-    }
     setTimeout(() => {
       setSeeding(false);
     }, 1500);

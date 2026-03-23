@@ -14,11 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { alertsAPI } from '../../src/services/api';
+import { getBroadcasts } from '../../src/services/firestore';
 import { COLORS, GRADIENTS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, ALERT_TYPES } from '../../src/constants/theme';
 import { format } from 'date-fns';
 
 const { width } = Dimensions.get('window');
+
+function mapAlertType(type: string): keyof typeof ALERT_TYPES {
+  if (type === 'information') return 'info';
+  if (type === 'all_clear') return 'info';
+  return (type as keyof typeof ALERT_TYPES) in ALERT_TYPES ? (type as keyof typeof ALERT_TYPES) : 'info';
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -51,9 +57,9 @@ export default function HomeScreen() {
 
   const fetchLatestAlert = async () => {
     try {
-      const response = await alertsAPI.getAll();
-      if (response.data.length > 0) {
-        setLatestAlert(response.data[0]);
+      const data = await getBroadcasts();
+      if (data.length > 0) {
+        setLatestAlert(data[0]);
       }
     } catch (error) {
       console.log('Error fetching alerts:', error);
@@ -66,13 +72,13 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const firstName = user?.full_name?.split(' ')[0] || 'User';
-  const userInitials = user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
+  const firstName = user?.fullName?.split(' ')[0] || 'User';
+  const userInitials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
   const quickActions = [
     { id: 'escort', title: 'Safety Escort', subtitle: 'Request a walk', icon: 'walk', colors: ['#ebf8ff', '#bee3f8'], iconColor: COLORS.info, route: '/escort-request' },
     { id: 'report', title: 'Report Incident', subtitle: 'Submit a report', icon: 'document-text', colors: ['#fffff0', '#fefcbf'], iconColor: COLORS.warning, route: '/incident-report' },
-    { id: 'friend', title: 'Friend Walk', subtitle: 'Share location', icon: 'people', colors: ['#f0fff4', '#c6f6d5'], iconColor: COLORS.secondary, route: '/friend-walk' },
+    { id: 'shuttle', title: 'Book Shuttle', subtitle: 'Campus to anywhere', icon: 'bus', colors: ['#f0fff4', '#c6f6d5'], iconColor: COLORS.secondary, route: '/shuttle' },
     { id: 'map', title: 'Campus Map', subtitle: 'Find resources', icon: 'map', colors: ['#faf5ff', '#e9d8fd'], iconColor: '#805ad5', route: '/(tabs)/map' },
   ];
 
@@ -92,9 +98,8 @@ export default function HomeScreen() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          {/* Decorative circle */}
           <View style={styles.decorativeCircle} />
-          
+
           <SafeAreaView edges={['top']}>
             <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
@@ -117,7 +122,7 @@ export default function HomeScreen() {
           </SafeAreaView>
         </LinearGradient>
 
-        {/* SOS Button - Most Prominent */}
+        {/* SOS Button */}
         <View style={styles.sosContainer}>
           <TouchableOpacity
             style={styles.sosButtonWrapper}
@@ -174,44 +179,39 @@ export default function HomeScreen() {
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.alertCard}
               onPress={() => router.push('/(tabs)/alerts')}
               activeOpacity={0.8}
             >
-              <View style={[
-                styles.alertBorder,
-                { backgroundColor: ALERT_TYPES[latestAlert.alert_type as keyof typeof ALERT_TYPES]?.color || COLORS.warning }
-              ]} />
-              <View style={styles.alertContent}>
-                <View style={styles.alertTop}>
-                  <View style={[
-                    styles.alertBadge,
-                    { backgroundColor: ALERT_TYPES[latestAlert.alert_type as keyof typeof ALERT_TYPES]?.bgColor || '#fefcbf' }
-                  ]}>
-                    <Ionicons
-                      name={ALERT_TYPES[latestAlert.alert_type as keyof typeof ALERT_TYPES]?.icon as any || 'warning'}
-                      size={14}
-                      color={ALERT_TYPES[latestAlert.alert_type as keyof typeof ALERT_TYPES]?.color || COLORS.warning}
-                    />
-                    <Text style={[
-                      styles.alertBadgeText,
-                      { color: ALERT_TYPES[latestAlert.alert_type as keyof typeof ALERT_TYPES]?.color || COLORS.warning }
-                    ]}>
-                      {latestAlert.alert_type.charAt(0).toUpperCase() + latestAlert.alert_type.slice(1)}
-                    </Text>
-                  </View>
-                  <Text style={styles.alertTime}>
-                    {format(new Date(latestAlert.created_at), 'h:mm a')}
-                  </Text>
-                </View>
-                <Text style={styles.alertTitle} numberOfLines={1}>
-                  {latestAlert.title}
-                </Text>
-                <Text style={styles.alertMessage} numberOfLines={2}>
-                  {latestAlert.message}
-                </Text>
-              </View>
+              {(() => {
+                const mappedType = mapAlertType(latestAlert.type || 'info');
+                const config = ALERT_TYPES[mappedType] || ALERT_TYPES.info;
+                return (
+                  <>
+                    <View style={[styles.alertBorder, { backgroundColor: config.color }]} />
+                    <View style={styles.alertContent}>
+                      <View style={styles.alertTop}>
+                        <View style={[styles.alertBadge, { backgroundColor: config.bgColor }]}>
+                          <Ionicons name={config.icon as any} size={14} color={config.color} />
+                          <Text style={[styles.alertBadgeText, { color: config.color }]}>
+                            {(latestAlert.type || 'info').charAt(0).toUpperCase() + (latestAlert.type || 'info').slice(1)}
+                          </Text>
+                        </View>
+                        <Text style={styles.alertTime}>
+                          {format(new Date(latestAlert.createdAt), 'h:mm a')}
+                        </Text>
+                      </View>
+                      <Text style={styles.alertTitle} numberOfLines={1}>
+                        {latestAlert.title}
+                      </Text>
+                      <Text style={styles.alertMessage} numberOfLines={2}>
+                        {latestAlert.message}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
             </TouchableOpacity>
           </View>
         )}

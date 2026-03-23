@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import AlertsPage from "./pages/AlertsPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import EscortsPage from "./pages/EscortsPage";
+import ShuttlesPage from "./pages/ShuttlesPage";
 import BroadcastPage from "./pages/BroadcastPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import UsersPage from "./pages/UsersPage";
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/incidents" element={<IncidentsPage />} />
         <Route path="/escorts" element={<EscortsPage />} />
+        <Route path="/shuttles" element={<ShuttlesPage />} />
         <Route path="/broadcast" element={<BroadcastPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/users" element={<UsersPage />} />

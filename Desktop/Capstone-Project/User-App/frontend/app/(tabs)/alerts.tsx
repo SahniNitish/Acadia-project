@@ -9,11 +9,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { alertsAPI } from '../../src/services/api';
+import { getBroadcasts } from '../../src/services/firestore';
 import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS, ALERT_TYPES } from '../../src/constants/theme';
 import Card from '../../src/components/Card';
 import LoadingSpinner from '../../src/components/LoadingSpinner';
 import { format } from 'date-fns';
+
+function mapAlertType(type: string): keyof typeof ALERT_TYPES {
+  if (type === 'information') return 'info';
+  if (type === 'all_clear') return 'info';
+  return (type as keyof typeof ALERT_TYPES) in ALERT_TYPES ? (type as keyof typeof ALERT_TYPES) : 'info';
+}
 
 export default function AlertsScreen() {
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -27,8 +33,8 @@ export default function AlertsScreen() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await alertsAPI.getAll();
-      setAlerts(response.data);
+      const data = await getBroadcasts();
+      setAlerts(data);
     } catch (error) {
       console.log('Error fetching alerts:', error);
     } finally {
@@ -43,8 +49,9 @@ export default function AlertsScreen() {
   };
 
   const renderAlert = ({ item }: { item: any }) => {
-    const alertConfig = ALERT_TYPES[item.alert_type as keyof typeof ALERT_TYPES] || ALERT_TYPES.info;
-    
+    const mappedType = mapAlertType(item.type || 'info');
+    const alertConfig = ALERT_TYPES[mappedType] || ALERT_TYPES.info;
+
     return (
       <TouchableOpacity onPress={() => setSelectedAlert(item)} activeOpacity={0.7}>
         <Card style={styles.alertCard}>
@@ -54,10 +61,10 @@ export default function AlertsScreen() {
             </View>
             <View style={styles.alertInfo}>
               <Text style={styles.alertType}>
-                {item.alert_type.charAt(0).toUpperCase() + item.alert_type.slice(1)}
+                {(item.type || 'info').charAt(0).toUpperCase() + (item.type || 'info').slice(1)}
               </Text>
               <Text style={styles.alertTime}>
-                {format(new Date(item.created_at), 'MMM d, yyyy · h:mm a')}
+                {format(new Date(item.createdAt), 'MMM d, yyyy · h:mm a')}
               </Text>
             </View>
           </View>
@@ -76,8 +83,9 @@ export default function AlertsScreen() {
 
   // Alert Detail Modal
   if (selectedAlert) {
-    const alertConfig = ALERT_TYPES[selectedAlert.alert_type as keyof typeof ALERT_TYPES] || ALERT_TYPES.info;
-    
+    const mappedType = mapAlertType(selectedAlert.type || 'info');
+    const alertConfig = ALERT_TYPES[mappedType] || ALERT_TYPES.info;
+
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.detailHeader}>
@@ -92,11 +100,11 @@ export default function AlertsScreen() {
             <Ionicons name={alertConfig.icon as any} size={32} color={COLORS.white} />
           </View>
           <Text style={styles.detailType}>
-            {selectedAlert.alert_type.charAt(0).toUpperCase() + selectedAlert.alert_type.slice(1)}
+            {(selectedAlert.type || 'info').charAt(0).toUpperCase() + (selectedAlert.type || 'info').slice(1)}
           </Text>
           <Text style={styles.detailTitle}>{selectedAlert.title}</Text>
           <Text style={styles.detailTime}>
-            {format(new Date(selectedAlert.created_at), 'EEEE, MMMM d, yyyy · h:mm a')}
+            {format(new Date(selectedAlert.createdAt), 'EEEE, MMMM d, yyyy · h:mm a')}
           </Text>
           <View style={styles.detailMessageContainer}>
             <Text style={styles.detailMessage}>{selectedAlert.message}</Text>
@@ -111,7 +119,7 @@ export default function AlertsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Campus Alerts</Text>
       </View>
-      
+
       {alerts.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="notifications-off" size={64} color={COLORS.gray[300]} />

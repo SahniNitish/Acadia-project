@@ -6,265 +6,194 @@ Acadia Safe is a comprehensive campus safety monitoring system built for Acadia 
 
 **Applications:**
 - **Dashboard/** - Admin web dashboard for security staff to monitor alerts, manage incidents, and coordinate responses (React 19)
-- **User-App/** - Student-facing mobile app for reporting incidents, requesting escorts, and receiving alerts (React Native + Expo)
+- **User-App/** - Student-facing mobile app for reporting incidents, requesting escorts, shuttle booking, and receiving alerts (React Native + Expo)
+
+> **Note:** The User-App backend (FastAPI + MongoDB) has been removed. Both apps now read/write directly to Firebase Firestore (`acadia-campus-hub`). No backends to start.
+
+---
 
 ## Technology Stack
 
 ### Dashboard Frontend
 - **Framework:** React 19 (Create React App)
-- **Build Tool:** CRACO (Create React App Configuration Override)
-- **Styling:** Tailwind CSS 3.4 with custom design system
+- **Build Tool:** CRACO
+- **Styling:** Tailwind CSS 3.4
 - **UI Components:** shadcn/ui (Radix UI primitives)
 - **State Management:** React Context API
 - **Routing:** React Router DOM v7
 - **Icons:** Lucide React
-- **Forms:** React Hook Form with Zod validation
 - **Charts:** Recharts
-- **Maps:** Leaflet via react-leaflet
-- **Notifications:** Sonner (toast notifications)
+- **Notifications:** Sonner (toast)
+- **Database:** Firebase Firestore (direct — no backend)
+- **Auth:** Firebase Auth
 
 ### User-App (Mobile)
 - **Framework:** React Native 0.81.5 + Expo 54
 - **Language:** TypeScript
 - **Navigation:** Expo Router v6 (Stack + Tabs + Modals)
-- **Auth:** Firebase Auth (Email/Password) + Campus Backend JWT (dual auth)
+- **Auth:** Firebase Auth only (no backend JWT)
+- **Database:** Firebase Firestore (direct)
+- **Storage:** Firebase Storage (incident photos)
 - **Maps:** react-native-maps (Apple Maps on iOS, web-safe fallback)
-- **Location:** expo-location (foreground permissions, watchPositionAsync)
-- **API Client:** Axios
-- **Storage:** AsyncStorage
+- **Location:** expo-location
+- **Haptics:** expo-haptics (SOS beep feedback)
+- **Address search:** Nominatim/OpenStreetMap (free, no API key)
 
-### Dashboard Backend
-- **Framework:** FastAPI 0.110.1 (Python)
-- **Server:** Uvicorn 0.25.0
-- **Database:** MongoDB (via Motor 3.3.1 async driver)
-- **Authentication:** Firebase Admin SDK
-- **Data Validation:** Pydantic v2
-- **CORS:** Starlette CORS middleware
+---
 
-### User-App Backend
-- **Framework:** FastAPI (Python)
-- **Server:** Uvicorn
-- **Database:** MongoDB
-- **Firebase Bridge:** Firebase Admin SDK (mirrors SOS to Firestore for Dashboard real-time updates)
+## Firebase Project
 
-### External Services
-- **Authentication:** Firebase Auth (Email/Password)
-- **Database:** Firebase Firestore (real-time data synchronization)
-- **File Storage:** Firebase Cloud Storage
-- **Analytics:** PostHog
+Both apps use the **same** Firebase project: `acadia-campus-hub`
+
+```
+apiKey: "AIzaSyDt5YlJ_ZgO0aswJXTtCqBJelwLDQfbc2A"
+authDomain: "acadia-campus-hub.firebaseapp.com"
+projectId: "acadia-campus-hub"
+storageBucket: "acadia-campus-hub.firebasestorage.app"
+messagingSenderId: "178102066314"
+appId: "1:178102066314:web:bd5fa015f3a0a86ec7a173"
+```
+
+---
 
 ## Project Structure
 
 ```
 Capstone-Project/
-├── Dashboard/                          # Admin web dashboard
-│   ├── frontend/                       # React frontend
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── ui/                # shadcn/ui components (50+ components)
-│   │   │   │   ├── layout/            # Layout components (Sidebar, Header, DashboardLayout)
-│   │   │   │   └── dashboard/         # Dashboard-specific components (CampusMap)
-│   │   │   ├── pages/                 # Page components (9 pages)
-│   │   │   ├── lib/                   # Utilities and configurations
-│   │   │   ├── hooks/                 # Custom React hooks
-│   │   │   ├── App.js                 # Main App component with routing
-│   │   │   └── index.js               # Entry point
-│   │   ├── package.json
-│   │   ├── craco.config.js
-│   │   └── tailwind.config.js
-│   ├── backend/                        # FastAPI backend
-│   │   ├── server.py                  # Main FastAPI application
-│   │   └── requirements.txt
-│   └── tests/
+├── session.md                          # AI session log (read this first!)
+├── AGENTS.md                           # This file — architecture reference
 │
-└── User-App/                           # Student mobile app (React Native + Expo)
-    ├── frontend/
-    │   ├── app/                        # Expo Router screens
-    │   │   ├── index.tsx               # Splash / auth redirect
-    │   │   ├── login.tsx               # Login screen
-    │   │   ├── signup.tsx              # Sign up screen
-    │   │   ├── sos.tsx                 # SOS emergency screen
-    │   │   ├── incident-report.tsx     # Report an incident
-    │   │   ├── escort-request.tsx      # Request safe-walk escort (map destination picker + polling)
-    │   │   ├── friend-walk.tsx         # Friend walk (live map + continuous location tracking)
-    │   │   ├── emergency-contacts.tsx  # Emergency contacts
-    │   │   ├── my-reports.tsx          # User's incident report history
-    │   │   ├── safety-tips.tsx         # Campus safety tips
-    │   │   ├── about.tsx              # App info screen
-    │   │   ├── _layout.tsx             # Root layout
-    │   │   └── (tabs)/                 # Bottom tab navigator
-    │   │       ├── index.tsx           # Home tab
-    │   │       ├── alerts.tsx          # View alerts tab
-    │   │       ├── map.tsx             # Campus map tab (real Apple Maps)
-    │   │       └── profile.tsx         # Profile tab (backend persistence)
-    │   ├── src/
-    │   │   ├── components/             # Button, Input, Card, LoadingSpinner, CampusMap
-    │   │   ├── constants/theme.ts      # Colors, spacing, campus coords
-    │   │   ├── context/AuthContext.tsx  # Firebase + backend dual auth
-    │   │   ├── firebase/config.ts      # Firebase init
-    │   │   └── services/api.ts         # Axios client for backend
-    │   ├── app.json
-    │   └── package.json
-    ├── backend/
-    │   ├── server.py                   # Campus backend (port 8001)
-    │   └── requirements.txt
-    └── tests/
+├── Dashboard/                          # Admin web dashboard
+│   └── frontend/
+│       └── src/
+│           ├── pages/                  # 10 pages
+│           │   ├── LoginPage.jsx
+│           │   ├── DashboardPage.jsx
+│           │   ├── AlertsPage.jsx      # SOS alerts + Web Audio beep + browser notifications
+│           │   ├── IncidentsPage.jsx   # Incident reports + photo gallery
+│           │   ├── EscortsPage.jsx     # Safety escort management
+│           │   ├── ShuttlesPage.jsx    # Shuttle booking management (new)
+│           │   ├── BroadcastPage.jsx   # Send campus alerts
+│           │   ├── AnalyticsPage.jsx
+│           │   ├── UsersPage.jsx
+│           │   └── SettingsPage.jsx
+│           ├── components/
+│           │   ├── ui/                 # shadcn/ui components
+│           │   └── layout/             # Sidebar, Header, DashboardLayout
+│           ├── lib/
+│           │   ├── firebase.js         # Firebase init (acadia-campus-hub)
+│           │   └── AuthContext.js      # Staff auth
+│           └── App.js                  # Routes (10 pages)
+│
+└── User-App/
+    └── frontend/
+        ├── app/                        # Expo Router screens
+        │   ├── index.tsx               # Splash / auth redirect
+        │   ├── login.tsx
+        │   ├── signup.tsx
+        │   ├── sos.tsx                 # SOS + haptic beeps + X button
+        │   ├── incident-report.tsx     # Photos → Firebase Storage
+        │   ├── escort-request.tsx      # Firestore + real-time onSnapshot
+        │   ├── shuttle.tsx             # NEW: shuttle booking (Nominatim autocomplete)
+        │   ├── emergency-contacts.tsx
+        │   ├── my-reports.tsx          # Reads incidents from Firestore
+        │   ├── safety-tips.tsx
+        │   ├── about.tsx
+        │   └── (tabs)/
+        │       ├── index.tsx           # Home: SOS + quick actions (Escort, Report, Shuttle, Map)
+        │       ├── alerts.tsx          # Reads broadcasts from Firestore
+        │       ├── map.tsx             # Campus map (redesigned UI)
+        │       ├── profile.tsx         # Firestore profile persistence
+        │       └── _layout.tsx         # Tab bar (4 tabs)
+        └── src/
+            ├── components/
+            │   ├── CampusMap.tsx       # Reusable map (web-safe, Apple Maps on iOS)
+            │   ├── Button.tsx
+            │   ├── Input.tsx
+            │   ├── Card.tsx
+            │   └── LoadingSpinner.tsx
+            ├── constants/theme.ts      # COLORS, SPACING, FONT_SIZE, SHADOWS, etc.
+            ├── context/AuthContext.tsx # Firebase-only auth; user fields in camelCase
+            ├── firebase/config.ts      # exports: auth, db, storage, app
+            └── services/firestore.ts  # All Firestore/Storage operations
 ```
 
-## Build and Development Commands
+---
 
-### Dashboard Frontend
+## Firestore Collections
+
+All collections are in the `acadia-campus-hub` project.
+
+| Collection | Writer | Reader | Key Fields |
+|------------|--------|--------|------------|
+| `alerts` | User-App | Dashboard | `studentName`, `studentEmail`, `studentPhone`, `latitude`, `longitude`, `location`, `alertType`, `status: 'new'|'resolved'`, `createdAt`, `userId` |
+| `incidents` | User-App | Dashboard | `type`, `location`, `latitude`, `longitude`, `description`, `reporterName`, `reporterEmail`, `anonymous`, `photos: [urls]`, `status: 'new'`, `createdAt`, `userId` |
+| `escorts` | User-App | Dashboard | `studentName`, `studentEmail`, `pickup`, `destination`, `status: 'pending'→'in_progress'→'completed'`, `assignedToName`, `estimatedWait`, `createdAt`, `userId` |
+| `shuttles` | User-App | Dashboard | `studentName`, `studentEmail`, `pickup`, `destination`, `status: 'pending'→'in_progress'→'completed'`, `assignedToName`, `estimatedWait: 15`, `createdAt`, `userId` |
+| `broadcasts` | Dashboard | User-App | `type` (NOT `alert_type`), `title`, `message`, `targetAudience`, `status`, `createdAt` |
+| `users/{uid}` | User-App | User-App | `fullName`, `email`, `phone`, `profilePhoto` (base64), `emergencyContactName`, `emergencyContactPhone`, `createdAt` |
+| `users/{uid}/contacts/{id}` | User-App | User-App | `name`, `phone`, `relationship`, `createdAt` |
+
+### Firebase Storage
+- Incident photos: `incidents/{uid}/{timestamp}_{index}.jpg` → download URL stored in `incidents.photos[]`
+
+---
+
+## Key Implementation Notes
+
+### User-App Auth Flow
+1. `onAuthStateChanged` → `getUserProfile(uid)` → `setUser` (camelCase)
+2. Signup: `createUserWithEmailAndPassword` → `updateProfile` → `createUserProfile` in Firestore
+3. Login: `signInWithEmailAndPassword` → `getUserProfile` → `setUser`
+4. No backend JWT, no AsyncStorage token — pure Firebase
+
+### Field Name Conventions
+- User profile: **camelCase** (`fullName`, `profilePhoto`, `emergencyContactName`, `emergencyContactPhone`)
+- `broadcasts.type`: `'information'`, `'all_clear'`, `'emergency'`, `'advisory'` — map `information`/`all_clear` → `'info'` for `ALERT_TYPES` theme key
+- Escort/Shuttle assigned state: `status === 'in_progress'` (NOT `'assigned'`)
+
+### Dashboard Alerts (SOS sound)
+- `AudioContext` generates 3× 880Hz beeps via Web Audio API (no sound file)
+- `Notification` API for OS-level browser notifications
+- Guard: `snapshot.metadata.fromCache` prevents sound on page load
+
+### Nominatim Address Search (Shuttle screen)
+- URL: `https://nominatim.openstreetmap.org/search?q=...&format=json&limit=5&countrycodes=ca`
+- 500ms debounce, min 3 chars
+- Required header: `User-Agent: AcadiaSafe/1.0 (campus safety app)`
+
+---
+
+## Dev Commands
 
 ```bash
-cd Dashboard/frontend
+# Dashboard
+cd Dashboard/frontend && npm start           # http://localhost:3000
 
-# Install dependencies
-npm install --legacy-peer-deps
-
-# Start development server (http://localhost:3000)
-npm start
-
-# Build for production
-npm run build
+# User-App
+cd User-App/frontend && npx expo start       # http://localhost:8081 or scan QR in Expo Go
 ```
 
-### Dashboard Backend
+---
 
-```bash
-cd Dashboard/backend
+## Design System (User-App)
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
+From `src/constants/theme.ts`:
+- **Primary:** `#1a365d` (navy)
+- **Accent:** `#e53e3e` (red — SOS)
+- **Secondary:** `#38a169` (green — safe/success)
+- **Background:** `#f7fafc`
+- **Campus center:** `45.0875, -64.3665` (Acadia University, Wolfville NS)
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Run development server (http://localhost:8000)
-uvicorn server:app --reload --port 8000
-```
+## TODO / Known Issues
 
-### User-App (Mobile)
-
-```bash
-cd User-App/frontend
-
-# Install dependencies
-npm install
-
-# Start Expo dev server (http://localhost:8081)
-npx expo start
-```
-
-### User-App Backend
-
-```bash
-cd User-App/backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server (http://localhost:8001)
-uvicorn server:app --reload --host 0.0.0.0 --port 8001
-```
-
-## Environment Configuration
-
-### Dashboard Frontend `.env`
-
-```bash
-REACT_APP_BACKEND_URL=http://localhost:8000/api
-```
-
-### Dashboard Backend `.env`
-
-```bash
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=acadia_safe
-CORS_ORIGINS=http://localhost:3000
-```
-
-### User-App Backend `.env`
-
-```bash
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=acadia_safe
-# Firebase service account — enables SOS→Dashboard bridge
-FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"acadia-campus-hub",...}
-```
-
-## Firebase Projects
-
-| App | Project ID | Auth Domain |
-|-----|-----------|-------------|
-| Dashboard | `acadia-campus-hub` | `acadia-campus-hub.firebaseapp.com` |
-| User-App | `acadia-safety` | `acadia-safety.firebaseapp.com` |
-
-## Dashboard API Endpoints
-
-All endpoints prefixed with `/api`:
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/alerts` | List all alerts |
-| POST | `/api/alerts` | Create new alert |
-| PUT | `/api/alerts/{id}` | Update alert status |
-| GET | `/api/incidents` | List all incidents |
-| POST | `/api/incidents` | Create new incident |
-| GET | `/api/escorts` | List all escorts |
-| POST | `/api/escorts` | Create new escort |
-| PUT | `/api/escorts/{id}` | Update escort status |
-| GET | `/api/users` | List all users |
-| GET | `/api/staff` | List all staff |
-| GET | `/api/broadcasts` | List all broadcasts |
-| POST | `/api/broadcasts` | Create new broadcast |
-| POST | `/api/seed-demo-data` | Seed demo data |
-
-## Code Style Guidelines
-
-### JavaScript/React Conventions
-
-1. **Component Exports:**
-   - Pages MUST use default exports: `export default function PageName() {...}`
-   - Components MUST use named exports: `export const ComponentName = ...`
-
-2. **Styling:**
-   - Use Tailwind CSS utility classes
-   - All interactive elements MUST have a `data-testid` attribute
-
-3. **Naming Conventions:**
-   - Components: PascalCase (e.g., `AlertCard.jsx`)
-   - Hooks: camelCase with `use` prefix (e.g., `useAuth.js`)
-
-### Python/FastAPI Conventions
-
-1. **Model Definitions:**
-   - Use Pydantic v2 BaseModel with `ConfigDict(extra="ignore")`
-   - UUID fields use: `default_factory=lambda: str(uuid.uuid4())`
-
-2. **Route Organization:**
-   - All routes under `/api` prefix using APIRouter
-
-## Design System
-
-### Color Palette
-- **Primary Navy:** `#0d1b2a` (sidebar, primary actions)
-- **Status Colors:** Danger `#e53e3e`, Safe `#38a169`, Warning `#ecc94b`, Info `#3182ce`
-
-### Typography
-- **Primary Font:** Inter (weights: 400, 500, 700, 900)
-- **Monospace Font:** JetBrains Mono (timestamps, IDs)
-
-## All Dev Services
-
-| Service | URL | Command |
-|---------|-----|---------|
-| Dashboard frontend | http://localhost:3000 | `cd Dashboard/frontend && npm start` |
-| Dashboard backend | http://localhost:8000 | `cd Dashboard/backend && uvicorn server:app --reload --port 8000` |
-| User-App (Expo) | http://localhost:8081 | `cd User-App/frontend && npx expo start` |
-| User-App backend | http://localhost:8001 | `cd User-App/backend && uvicorn server:app --reload --host 0.0.0.0 --port 8001` |
+| Priority | Item |
+|----------|------|
+| High | Update Firestore Security Rules in Firebase Console (currently `allow read, write: if request.auth != null`) |
+| High | Update Firebase Storage rules: `allow write: if request.auth != null` for `incidents/{uid}/**` |
+| Medium | Push notifications (Expo Notifications not installed) |
+| Medium | Move Firebase config keys to `.env` / `app.json` extra |
+| Low | `zustand` in package.json but never used |
+| Low | Dashboard "Forgot Password" button has no onClick |

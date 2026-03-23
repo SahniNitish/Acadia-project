@@ -53,9 +53,9 @@ export default function SignupScreen() {
         phone: phone.trim(),
         password,
       });
-      router.replace('/(tabs)');
+      router.replace('/verify-email');
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Signup failed. Please try again.';
+      const message = error.message || 'Signup failed. Please try again.';
       Alert.alert('Error', message);
     } finally {
       setLoading(false);

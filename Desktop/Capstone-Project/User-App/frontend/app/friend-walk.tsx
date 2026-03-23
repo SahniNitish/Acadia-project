@@ -14,7 +14,16 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { friendWalkAPI, contactsAPI } from '../src/services/api';
+import { useAuth } from '../src/context/AuthContext';
+import {
+  getContacts,
+  addContact,
+  startFriendWalk,
+  getActiveFriendWalk,
+  updateWalkLocation,
+  extendWalk,
+  completeWalk,
+} from '../src/services/firestore';
 import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../src/constants/theme';
 import Button from '../src/components/Button';
 import Card from '../src/components/Card';
@@ -32,6 +41,7 @@ const DURATION_OPTIONS = [
 
 export default function FriendWalkScreen() {
   const router = useRouter();
+  const { firebaseUser } = useAuth();
   const [state, setState] = useState<FriendWalkState>('setup');
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -40,7 +50,6 @@ export default function FriendWalkScreen() {
   const [location, setLocation] = useState<any>(null);
   const [activeWalk, setActiveWalk] = useState<any>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
-
   const [liveLocation, setLiveLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
@@ -59,12 +68,11 @@ export default function FriendWalkScreen() {
     let timer: any;
     if (state === 'active' && activeWalk) {
       timer = setInterval(() => {
-        const end = new Date(activeWalk.end_time).getTime();
+        const end = new Date(activeWalk.endTime).getTime();
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((end - now) / 1000));
         setTimeRemaining(remaining);
-        
-        if (remaining === 0 && activeWalk.duration_minutes > 0) {
+        if (remaining === 0 && activeWalk.durationMinutes > 0) {
           handleComplete();
         }
       }, 1000);
@@ -78,22 +86,18 @@ export default function FriendWalkScreen() {
       (async () => {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
-
         const sub = await Location.watchPositionAsync(
           { accuracy: Location.Accuracy.High, timeInterval: 15000, distanceInterval: 10 },
           (loc) => {
             const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
             setLiveLocation(coords);
-            friendWalkAPI.updateLocation(activeWalk.id, {
-              location_lat: coords.latitude,
-              location_lng: coords.longitude,
-            }).catch((err: any) => console.log('Location update error:', err));
+            updateWalkLocation(activeWalk.id, coords.latitude, coords.longitude)
+              .catch((err: any) => console.log('Location update error:', err));
           },
         );
         locationSubRef.current = sub;
       })();
     }
-
     return () => {
       locationSubRef.current?.remove();
       locationSubRef.current = null;
@@ -105,10 +109,7 @@ export default function FriendWalkScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({});
-        setLocation({
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-        });
+        setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       }
     } catch (error) {
       console.log('Error getting location:', error);
@@ -116,19 +117,21 @@ export default function FriendWalkScreen() {
   };
 
   const fetchContacts = async () => {
+    if (!firebaseUser) return;
     try {
-      const response = await contactsAPI.getAll();
-      setContacts(response.data);
+      const data = await getContacts(firebaseUser.uid);
+      setContacts(data);
     } catch (error) {
       console.log('Error fetching contacts:', error);
     }
   };
 
   const checkActiveWalk = async () => {
+    if (!firebaseUser) return;
     try {
-      const response = await friendWalkAPI.getActive();
-      if (response.data) {
-        setActiveWalk(response.data);
+      const walk = await getActiveFriendWalk(firebaseUser.uid);
+      if (walk) {
+        setActiveWalk(walk);
         setState('active');
       }
     } catch (error) {
@@ -138,9 +141,7 @@ export default function FriendWalkScreen() {
 
   const toggleContact = (contactId: string) => {
     setSelectedContacts((prev) =>
-      prev.includes(contactId)
-        ? prev.filter((id) => id !== contactId)
-        : [...prev, contactId]
+      prev.includes(contactId) ? prev.filter((id) => id !== contactId) : [...prev, contactId]
     );
   };
 
@@ -149,30 +150,33 @@ export default function FriendWalkScreen() {
       Alert.alert('Select Contacts', 'Please select at least one contact to share your location with');
       return;
     }
+    if (!firebaseUser) return;
 
     setLoading(true);
     try {
-      const response = await friendWalkAPI.start({
-        contact_ids: selectedContacts,
-        duration_minutes: duration,
-        location_lat: location?.lat || 45.0875,
-        location_lng: location?.lng || -64.3665,
+      await startFriendWalk(firebaseUser.uid, {
+        contactIds: selectedContacts,
+        durationMinutes: duration,
+        currentLatitude: location?.lat || 45.0875,
+        currentLongitude: location?.lng || -64.3665,
       });
-      setActiveWalk(response.data);
+      const walk = await getActiveFriendWalk(firebaseUser.uid);
+      setActiveWalk(walk);
       setState('active');
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Failed to start Friend Walk';
-      Alert.alert('Error', message);
+      Alert.alert('Error', 'Failed to start Friend Walk');
     } finally {
       setLoading(false);
     }
   };
 
   const handleExtend = async () => {
+    if (!activeWalk) return;
     try {
-      await friendWalkAPI.extend(activeWalk.id, 15);
-      const response = await friendWalkAPI.getActive();
-      setActiveWalk(response.data);
+      const currentEndTime = activeWalk.endTime ? new Date(activeWalk.endTime).getTime() : Date.now();
+      await extendWalk(activeWalk.id, 15, currentEndTime);
+      const updated = await getActiveFriendWalk(firebaseUser!.uid);
+      setActiveWalk(updated);
       Alert.alert('Extended', 'Walk extended by 15 minutes');
     } catch (error) {
       Alert.alert('Error', 'Failed to extend walk');
@@ -180,8 +184,11 @@ export default function FriendWalkScreen() {
   };
 
   const handleComplete = async () => {
+    if (!activeWalk) return;
     try {
-      await friendWalkAPI.complete(activeWalk.id);
+      await completeWalk(activeWalk.id);
+      locationSubRef.current?.remove();
+      locationSubRef.current = null;
       setActiveWalk(null);
       setState('setup');
       Alert.alert('Safe!', 'Your contacts have been notified that you arrived safely.');
@@ -196,10 +203,11 @@ export default function FriendWalkScreen() {
       Alert.alert('Required', 'Please enter name and phone number');
       return;
     }
+    if (!firebaseUser) return;
 
     setLoading(true);
     try {
-      await contactsAPI.add({
+      await addContact(firebaseUser.uid, {
         name: newContactName.trim(),
         phone: newContactPhone.trim(),
         relationship: newContactRelation || undefined,
@@ -226,10 +234,7 @@ export default function FriendWalkScreen() {
   if (state === 'add-contact') {
     return (
       <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => setState('setup')} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={COLORS.gray[700]} />
@@ -237,34 +242,11 @@ export default function FriendWalkScreen() {
             <Text style={styles.headerTitle}>Add Contact</Text>
             <View style={{ width: 24 }} />
           </View>
-
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Input
-              label="Name *"
-              placeholder="Contact name"
-              value={newContactName}
-              onChangeText={setNewContactName}
-            />
-            <Input
-              label="Phone Number *"
-              placeholder="902-555-0000"
-              value={newContactPhone}
-              onChangeText={setNewContactPhone}
-              keyboardType="phone-pad"
-            />
-            <Input
-              label="Relationship (optional)"
-              placeholder="e.g., Mom, Friend, Roommate"
-              value={newContactRelation}
-              onChangeText={setNewContactRelation}
-            />
-            <Button
-              title="Save Contact"
-              onPress={handleAddContact}
-              loading={loading}
-              fullWidth
-              style={styles.saveButton}
-            />
+            <Input label="Name *" placeholder="Contact name" value={newContactName} onChangeText={setNewContactName} />
+            <Input label="Phone Number *" placeholder="902-555-0000" value={newContactPhone} onChangeText={setNewContactPhone} keyboardType="phone-pad" />
+            <Input label="Relationship (optional)" placeholder="e.g., Mom, Friend, Roommate" value={newContactRelation} onChangeText={setNewContactRelation} />
+            <Button title="Save Contact" onPress={handleAddContact} loading={loading} fullWidth style={styles.saveButton} />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -285,9 +267,9 @@ export default function FriendWalkScreen() {
           <Card style={styles.timerCard}>
             <Ionicons name="time" size={28} color={COLORS.primary} />
             <Text style={styles.timerLabel}>
-              {activeWalk.duration_minutes === 0 ? 'Sharing until stopped' : 'Time remaining'}
+              {activeWalk.durationMinutes === 0 ? 'Sharing until stopped' : 'Time remaining'}
             </Text>
-            {activeWalk.duration_minutes > 0 && (
+            {activeWalk.durationMinutes > 0 && (
               <Text style={styles.timerValue}>{formatTime(timeRemaining)}</Text>
             )}
           </Card>
@@ -298,7 +280,7 @@ export default function FriendWalkScreen() {
               <Text style={styles.arrivedButtonText}>I've Arrived Safely</Text>
             </TouchableOpacity>
 
-            {activeWalk.duration_minutes > 0 && (
+            {activeWalk.durationMinutes > 0 && (
               <TouchableOpacity style={styles.extendButton} onPress={handleExtend}>
                 <Ionicons name="add-circle" size={24} color={COLORS.primary} />
                 <Text style={styles.extendButtonText}>Extend Time (+15 min)</Text>
@@ -338,9 +320,7 @@ export default function FriendWalkScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.description}>
-          Share your live location with trusted contacts while walking.
-        </Text>
+        <Text style={styles.description}>Share your live location with trusted contacts while walking.</Text>
 
         {/* Contacts Section */}
         <View style={styles.section}>
@@ -355,22 +335,14 @@ export default function FriendWalkScreen() {
             <Card style={styles.emptyCard}>
               <Ionicons name="people" size={40} color={COLORS.gray[300]} />
               <Text style={styles.emptyText}>No trusted contacts yet</Text>
-              <Button
-                title="Add Contact"
-                size="small"
-                onPress={() => setState('add-contact')}
-                style={styles.addButton}
-              />
+              <Button title="Add Contact" size="small" onPress={() => setState('add-contact')} style={styles.addButton} />
             </Card>
           ) : (
             <View style={styles.contactsList}>
               {contacts.map((contact) => (
                 <TouchableOpacity
                   key={contact.id}
-                  style={[
-                    styles.contactItem,
-                    selectedContacts.includes(contact.id) && styles.contactItemSelected,
-                  ]}
+                  style={[styles.contactItem, selectedContacts.includes(contact.id) && styles.contactItemSelected]}
                   onPress={() => toggleContact(contact.id)}
                 >
                   <View style={styles.contactInfo}>
@@ -402,16 +374,10 @@ export default function FriendWalkScreen() {
             {DURATION_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
-                style={[
-                  styles.durationOption,
-                  duration === option.value && styles.durationOptionSelected,
-                ]}
+                style={[styles.durationOption, duration === option.value && styles.durationOptionSelected]}
                 onPress={() => setDuration(option.value)}
               >
-                <Text style={[
-                  styles.durationLabel,
-                  duration === option.value && styles.durationLabelSelected,
-                ]}>
+                <Text style={[styles.durationLabel, duration === option.value && styles.durationLabelSelected]}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
@@ -419,31 +385,16 @@ export default function FriendWalkScreen() {
           </View>
         </View>
 
-        <Button
-          title="Start Friend Walk"
-          onPress={handleStartWalk}
-          loading={loading}
-          disabled={contacts.length === 0}
-          fullWidth
-          style={styles.startButton}
-        />
+        <Button title="Start Friend Walk" onPress={handleStartWalk} loading={loading} disabled={contacts.length === 0} fullWidth style={styles.startButton} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  containerActive: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  containerActive: { flex: 1, backgroundColor: COLORS.primary },
+  keyboardView: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -453,54 +404,17 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.gray[200],
     backgroundColor: COLORS.white,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.gray[800],
-  },
-  scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: SPACING.xxl,
-  },
-  description: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.gray[600],
-    marginBottom: SPACING.lg,
-    lineHeight: 22,
-  },
-  section: {
-    marginBottom: SPACING.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-  },
-  emptyCard: {
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  emptyText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.gray[500],
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  addButton: {
-    paddingHorizontal: SPACING.lg,
-  },
-  contactsList: {
-    gap: SPACING.sm,
-  },
+  backButton: { padding: 4 },
+  headerTitle: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: COLORS.gray[800] },
+  scrollContent: { padding: SPACING.md, paddingBottom: SPACING.xxl },
+  description: { fontSize: FONT_SIZE.md, color: COLORS.gray[600], marginBottom: SPACING.lg, lineHeight: 22 },
+  section: { marginBottom: SPACING.lg },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.sm },
+  sectionTitle: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.gray[700] },
+  emptyCard: { alignItems: 'center', padding: SPACING.xl },
+  emptyText: { fontSize: FONT_SIZE.md, color: COLORS.gray[500], marginTop: SPACING.sm, marginBottom: SPACING.md },
+  addButton: { paddingHorizontal: SPACING.lg },
+  contactsList: { gap: SPACING.sm },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -510,31 +424,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     ...SHADOWS.sm,
   },
-  contactItemSelected: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  contactInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  contactText: {
-    marginLeft: SPACING.sm,
-  },
-  contactName: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.gray[800],
-  },
-  contactPhone: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray[500],
-  },
-  durationOptions: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginTop: SPACING.sm,
-  },
+  contactItemSelected: { borderWidth: 2, borderColor: COLORS.primary },
+  contactInfo: { flexDirection: 'row', alignItems: 'center' },
+  contactText: { marginLeft: SPACING.sm },
+  contactName: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.gray[800] },
+  contactPhone: { fontSize: FONT_SIZE.sm, color: COLORS.gray[500] },
+  durationOptions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
   durationOption: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -544,46 +439,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.gray[200],
   },
-  durationOptionSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary,
-  },
-  durationLabel: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-  },
-  durationLabelSelected: {
-    color: COLORS.white,
-  },
-  startButton: {
-    marginTop: SPACING.lg,
-  },
-  saveButton: {
-    marginTop: SPACING.lg,
-  },
-  // Active styles
-  activeContent: {
-    flex: 1,
-    padding: SPACING.lg,
-  },
-  timerCard: {
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  timerLabel: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray[500],
-    marginTop: SPACING.sm,
-  },
-  timerValue: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  activeActions: {
-    gap: SPACING.md,
-  },
+  durationOptionSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  durationLabel: { fontSize: FONT_SIZE.sm, fontWeight: '600', color: COLORS.gray[700] },
+  durationLabelSelected: { color: COLORS.white },
+  startButton: { marginTop: SPACING.lg },
+  saveButton: { marginTop: SPACING.lg },
+  activeContent: { flex: 1, padding: SPACING.lg },
+  timerCard: { alignItems: 'center', marginBottom: SPACING.lg },
+  timerLabel: { fontSize: FONT_SIZE.sm, color: COLORS.gray[500], marginTop: SPACING.sm },
+  timerValue: { fontSize: 48, fontWeight: 'bold', color: COLORS.primary },
+  activeActions: { gap: SPACING.md },
   arrivedButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -592,12 +457,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
   },
-  arrivedButtonText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.white,
-    marginLeft: SPACING.sm,
-  },
+  arrivedButtonText: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: COLORS.white, marginLeft: SPACING.sm },
   extendButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -606,18 +466,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
   },
-  extendButtonText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginLeft: SPACING.sm,
-  },
-  stopButton: {
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  stopButtonText: {
-    fontSize: FONT_SIZE.md,
-    color: 'rgba(255,255,255,0.8)',
-  },
+  extendButtonText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.primary, marginLeft: SPACING.sm },
+  stopButton: { alignItems: 'center', paddingVertical: SPACING.sm },
+  stopButtonText: { fontSize: FONT_SIZE.md, color: 'rgba(255,255,255,0.8)' },
 });
