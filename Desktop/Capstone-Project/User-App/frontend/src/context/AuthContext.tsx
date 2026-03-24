@@ -120,7 +120,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     await createUserProfile(result.user.uid, profile);
     // Send verification email before granting access
-    await sendEmailVerification(result.user);
+    const actionCodeSettings = {
+      url: 'https://acadia-campus-hub.firebaseapp.com',
+      handleCodeInApp: false,
+    };
+    try {
+      await sendEmailVerification(result.user, actionCodeSettings);
+    } catch (emailErr: any) {
+      console.error('[sendEmailVerification error]', emailErr.code, emailErr.message);
+      setFirebaseUser(result.user);
+      throw new Error('Account created but we could not send the verification email. Use "Resend" on the next screen.');
+    }
     setFirebaseUser(result.user);
     // Do NOT set user state — they must verify first
   };
@@ -153,7 +163,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendVerificationEmail = async () => {
     if (firebaseUser && !firebaseUser.emailVerified) {
-      await sendEmailVerification(firebaseUser);
+      const actionCodeSettings = {
+        url: 'https://acadia-campus-hub.firebaseapp.com',
+        handleCodeInApp: false,
+      };
+      await sendEmailVerification(firebaseUser, actionCodeSettings);
     }
   };
 

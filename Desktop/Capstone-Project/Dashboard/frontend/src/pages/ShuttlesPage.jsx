@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/AuthContext';
 import {
@@ -16,6 +16,19 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function ShuttlesPage() {
@@ -25,6 +38,11 @@ export default function ShuttlesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0 });
+
+  // Staff assignment state
+  const [staffList, setStaffList] = useState([]);
+  const [assignModal, setAssignModal] = useState({ open: false, shuttleId: null });
+  const [selectedStaffId, setSelectedStaffId] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'shuttles'), orderBy('createdAt', 'desc'));
@@ -44,22 +62,53 @@ export default function ShuttlesPage() {
     return () => unsubscribe();
   }, []);
 
+  // Fetch staff list once
+  useEffect(() => {
+    getDocs(collection(db, 'staff')).then(snap => {
+      setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }).catch(err => console.error('Error fetching staff:', err));
+  }, []);
+
   const handleAction = async (shuttleId, newStatus) => {
     try {
       const updateData = { status: newStatus, updatedAt: new Date().toISOString() };
       if (newStatus === 'in_progress') {
         updateData.assignedTo = user?.uid;
-        updateData.assignedToName = userData?.name;
+        updateData.assignedToName = userData?.name || user?.email || 'Staff';
       }
       if (newStatus === 'completed') {
         updateData.completedAt = new Date().toISOString();
       }
       await updateDoc(doc(db, 'shuttles', shuttleId), updateData);
-      toast.success(`Shuttle ${newStatus === 'completed' ? 'completed' : 'updated'}`);
+      toast.success(`Shuttle ${newStatus === 'completed' ? 'completed' : 'assigned to you'}`);
     } catch (error) {
       console.error('Error updating shuttle:', error);
       toast.error('Failed to update shuttle');
     }
+  };
+
+  const handleAssignToStaff = async () => {
+    const staff = staffList.find(s => s.id === selectedStaffId);
+    if (!staff || !assignModal.shuttleId) return;
+    try {
+      await updateDoc(doc(db, 'shuttles', assignModal.shuttleId), {
+        status: 'in_progress',
+        assignedTo: staff.id,
+        assignedToName: staff.name,
+        updatedAt: new Date().toISOString(),
+      });
+      toast.success(`Assigned to ${staff.name}`);
+      setAssignModal({ open: false, shuttleId: null });
+      setSelectedStaffId('');
+    } catch (error) {
+      console.error('Error assigning shuttle:', error);
+      toast.error('Failed to assign shuttle');
+    }
+  };
+
+  const openAssignModal = (shuttleId) => {
+    setSelectedStaffId('');
+    setAssignModal({ open: true, shuttleId });
   };
 
   const formatTimeAgo = (dateString) => {
@@ -161,11 +210,19 @@ export default function ShuttlesPage() {
                       {shuttle.notes && (
                         <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded mb-3">{shuttle.notes}</p>
                       )}
-                      <div className="flex gap-2">
+                      {shuttle.assignedToName && (
+                        <p className="text-xs text-blue-600 mb-2">Assigned: {shuttle.assignedToName}</p>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
                         {shuttle.status === 'pending' && (
-                          <Button size="sm" className="flex-1 bg-[#0d1b2a] hover:bg-[#1b263b] h-8" onClick={() => handleAction(shuttle.id, 'in_progress')}>
-                            Accept
-                          </Button>
+                          <>
+                            <Button size="sm" className="flex-1 bg-[#0d1b2a] hover:bg-[#1b263b] h-8" onClick={() => handleAction(shuttle.id, 'in_progress')}>
+                              Accept
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => openAssignModal(shuttle.id)}>
+                              Assign to Staff
+                            </Button>
+                          </>
                         )}
                         {shuttle.status === 'in_progress' && (
                           <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700 h-8" onClick={() => handleAction(shuttle.id, 'completed')}>
@@ -248,16 +305,23 @@ export default function ShuttlesPage() {
                       </td>
                       <td className="text-sm">{shuttle.assignedToName || '-'}</td>
                       <td>
-                        {shuttle.status === 'pending' && (
-                          <Button size="sm" className="bg-[#0d1b2a] hover:bg-[#1b263b]" onClick={() => handleAction(shuttle.id, 'in_progress')}>
-                            Accept
-                          </Button>
-                        )}
-                        {shuttle.status === 'in_progress' && (
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleAction(shuttle.id, 'completed')}>
-                            Complete
-                          </Button>
-                        )}
+                        <div className="flex gap-2">
+                          {shuttle.status === 'pending' && (
+                            <>
+                              <Button size="sm" className="bg-[#0d1b2a] hover:bg-[#1b263b]" onClick={() => handleAction(shuttle.id, 'in_progress')}>
+                                Accept
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => openAssignModal(shuttle.id)}>
+                                Assign to Staff
+                              </Button>
+                            </>
+                          )}
+                          {shuttle.status === 'in_progress' && (
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleAction(shuttle.id, 'completed')}>
+                              Complete
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -267,6 +331,47 @@ export default function ShuttlesPage() {
           </div>
         </Card>
       )}
+
+      {/* Assign to Staff Modal */}
+      <Dialog open={assignModal.open} onOpenChange={(open) => {
+        if (!open) setAssignModal({ open: false, shuttleId: null });
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Shuttle to Staff</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a staff member..." />
+              </SelectTrigger>
+              <SelectContent>
+                {staffList.map(s => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} {s.email ? `(${s.email})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setAssignModal({ open: false, shuttleId: null })}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-[#0d1b2a] hover:bg-[#1b263b]"
+                disabled={!selectedStaffId}
+                onClick={handleAssignToStaff}
+              >
+                Assign
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

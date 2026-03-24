@@ -131,8 +131,9 @@ export default function IncidentReportScreen() {
       );
       setReportId(docId);
       setStep('success');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    } catch (error: any) {
+      console.error('[incident submit error]', error);
+      Alert.alert('Error', error.message || 'Failed to submit report. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -364,10 +364,15 @@ export default function IncidentsPage() {
                         {incident.anonymous || !incident.reporterName ? (
                           <span className="text-slate-400 italic">Anonymous</span>
                         ) : (
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-slate-400" />
-                            {incident.reporterName}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="flex items-center gap-1">
+                              <User className="w-3 h-3 text-slate-400" />
+                              {incident.reporterName}
+                            </span>
+                            {incident.reporterEmail && (
+                              <span className="text-xs text-slate-400">{incident.reporterEmail}</span>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="text-sm text-slate-500">
@@ -469,6 +474,12 @@ export default function IncidentsPage() {
                   <p className="text-sm text-slate-500">Reported</p>
                   <p>{new Date(selectedIncident.createdAt).toLocaleString()}</p>
                 </div>
+                {!selectedIncident.anonymous && selectedIncident.reporterEmail && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-slate-500">Reporter Email</p>
+                    <p>{selectedIncident.reporterEmail}</p>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-sm text-slate-500 mb-2">Description</p>

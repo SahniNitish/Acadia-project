@@ -11,7 +11,7 @@ import {
   onSnapshot,
   deleteDoc,
 } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase/config';
 
 // ─── Photo Upload ─────────────────────────────────────────────────────────────
@@ -21,9 +21,12 @@ export const uploadIncidentPhoto = async (
   base64DataUri: string,
   index: number,
 ): Promise<string> => {
-  const base64 = base64DataUri.replace(/^data:image\/\w+;base64,/, '');
+  // React Native (Hermes) does not support creating Blobs from ArrayBuffer/Uint8Array.
+  // fetch() on a data URI returns a React Native blob that XHR can upload successfully.
+  const response = await fetch(base64DataUri);
+  const blob = await response.blob();
   const storageRef = ref(storage, `incidents/${uid}/${Date.now()}_${index}.jpg`);
-  await uploadString(storageRef, base64, 'base64', { contentType: 'image/jpeg' });
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
   return getDownloadURL(storageRef);
 };
 
@@ -117,9 +120,20 @@ export const createIncident = async (
   // Upload photos to Firebase Storage first
   let photoUrls: string[] = [];
   if (data.photoBase64s && data.photoBase64s.length > 0 && uid) {
-    photoUrls = await Promise.all(
-      data.photoBase64s.map((b64, i) => uploadIncidentPhoto(uid, b64, i))
-    );
+    try {
+      photoUrls = await Promise.all(
+        data.photoBase64s.map((b64, i) => uploadIncidentPhoto(uid, b64, i))
+      );
+    } catch (uploadErr: any) {
+      const code = uploadErr?.code || '';
+      if (code === 'storage/unauthorized') {
+        throw new Error('Photo upload blocked by Storage rules. Go to Firebase Console → Storage → Rules and allow authenticated writes.');
+      }
+      if (code === 'storage/unknown' || code === '') {
+        throw new Error('Firebase Storage is not enabled. Go to Firebase Console → Storage → Get Started, then try again.');
+      }
+      throw new Error(`Photo upload failed (${code || uploadErr.message}).`);
+    }
   }
 
   const docRef = await addDoc(collection(db, 'incidents'), {

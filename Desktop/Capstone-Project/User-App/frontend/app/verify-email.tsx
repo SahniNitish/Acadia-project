@@ -99,6 +99,9 @@ export default function VerifyEmailScreen() {
         <Text style={styles.instructionText}>
           Open the email and tap the link to verify your account. Once done, come back and tap the button below.
         </Text>
+        <Text style={styles.junkTipText}>
+          Tip: Acadia Outlook often moves Firebase emails to Junk Mail. Please check your Junk folder if you don't see it in Inbox.
+        </Text>
 
         {/* Primary CTA */}
         <TouchableOpacity
@@ -225,6 +228,13 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  junkTipText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
     lineHeight: 18,
   },
   primaryButton: {
