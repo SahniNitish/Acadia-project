@@ -43,12 +43,8 @@ export default function LoginScreen() {
       await login(email.toLowerCase().trim(), password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      if (error.code === 'auth/email-not-verified') {
-        router.push('/verify-email');
-      } else {
-        const message = error.message || 'Login failed. Please try again.';
-        Alert.alert('Error', message);
-      }
+      const message = error.message || 'Login failed. Please try again.';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }

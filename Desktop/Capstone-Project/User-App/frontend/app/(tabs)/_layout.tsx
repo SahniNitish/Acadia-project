@@ -11,11 +11,6 @@ export default function TabLayout() {
   // Wait for Firebase to restore the auth session
   if (isLoading) return null;
 
-  // Unverified user — send to verification screen
-  if (firebaseUser && !firebaseUser.emailVerified) {
-    return <Redirect href="/verify-email" />;
-  }
-
   // Not signed in — send to login
   if (!user) {
     return <Redirect href="/login" />;

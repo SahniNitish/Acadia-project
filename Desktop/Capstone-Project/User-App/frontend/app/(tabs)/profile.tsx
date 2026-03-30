@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useAuth } from '../../src/context/AuthContext';
+import { uploadProfilePhoto } from '../../src/services/firestore';
 import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../src/constants/theme';
 import Card from '../../src/components/Card';
 import Button from '../../src/components/Button';
@@ -22,7 +23,7 @@ import Input from '../../src/components/Input';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, updateUser } = useAuth();
+  const { user, firebaseUser, logout, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -83,13 +84,16 @@ export default function ProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
-      base64: true,
     });
-    if (!result.canceled && result.assets[0].base64) {
+    if (!result.canceled && result.assets[0].uri) {
       try {
-        await updateUser({ profilePhoto: `data:image/jpeg;base64,${result.assets[0].base64}` });
-      } catch (error) {
-        Alert.alert('Error', 'Failed to update profile photo');
+        const url = await uploadProfilePhoto(
+          firebaseUser!.uid,
+          result.assets[0].uri,
+        );
+        await updateUser({ profilePhoto: url });
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to update profile photo');
       }
     }
   };

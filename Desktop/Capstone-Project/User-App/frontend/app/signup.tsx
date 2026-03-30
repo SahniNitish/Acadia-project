@@ -53,7 +53,7 @@ export default function SignupScreen() {
         phone: phone.trim(),
         password,
       });
-      router.replace('/verify-email');
+      router.replace('/(tabs)');
     } catch (error: any) {
       const message = error.message || 'Signup failed. Please try again.';
       Alert.alert('Error', message);

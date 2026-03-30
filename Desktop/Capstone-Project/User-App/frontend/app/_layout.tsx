@@ -19,8 +19,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="signup" />
-          <Stack.Screen name="verify-email" />
-          <Stack.Screen name="(tabs)" />
+<Stack.Screen name="(tabs)" />
           <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal' }} />
           <Stack.Screen name="incident-report" options={{ presentation: 'modal' }} />
           <Stack.Screen name="escort-request" options={{ presentation: 'modal' }} />

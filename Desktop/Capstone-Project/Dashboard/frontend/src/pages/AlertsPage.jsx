@@ -78,7 +78,7 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
   const [filteredAlerts, setFilteredAlerts] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('today');
+  const [timeFilter, setTimeFilter] = useState('all');
   const [viewMode, setViewMode] = useState('card');
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -429,24 +429,24 @@ export default function AlertsPage() {
                         <Phone className="w-4 h-4" />
                         Call Student
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedAlert(alert)}
+                      >
+                        View Details
+                      </Button>
                       {alert.status !== 'resolved' && (
                         <>
-                          <Button 
+                          <Button
                             size="sm"
                             className="bg-[#0d1b2a] hover:bg-[#1b263b]"
                             onClick={() => handleAssignToMe(alert.id)}
                           >
                             Assign to Me
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedAlert(alert)}
-                          >
-                            View Details
-                          </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="text-green-600 border-green-200 hover:bg-green-50"
                             onClick={() => handleStatusChange(alert.id, 'resolved')}
@@ -557,17 +557,19 @@ export default function AlertsPage() {
                   <p className="text-sm text-slate-500 mb-1">Time</p>
                   <p className="font-medium">{new Date(selectedAlert.createdAt).toLocaleString()}</p>
                 </div>
-                <div className="flex gap-2 pt-4">
-                  <Button className="bg-[#0d1b2a] hover:bg-[#1b263b]" onClick={() => handleAssignToMe(selectedAlert.id)}>
-                    Assign to Me
-                  </Button>
-                  <Button variant="outline" className="text-green-600" onClick={() => {
-                    handleStatusChange(selectedAlert.id, 'resolved');
-                    setSelectedAlert(null);
-                  }}>
-                    Mark Resolved
-                  </Button>
-                </div>
+                {selectedAlert.status !== 'resolved' && (
+                  <div className="flex gap-2 pt-4">
+                    <Button className="bg-[#0d1b2a] hover:bg-[#1b263b]" onClick={() => handleAssignToMe(selectedAlert.id)}>
+                      Assign to Me
+                    </Button>
+                    <Button variant="outline" className="text-green-600" onClick={() => {
+                      handleStatusChange(selectedAlert.id, 'resolved');
+                      setSelectedAlert(null);
+                    }}>
+                      Mark Resolved
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="h-[300px] rounded-lg overflow-hidden">
                 <CampusMap alerts={[selectedAlert]} height="100%" />

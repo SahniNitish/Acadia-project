@@ -71,10 +71,9 @@ export default function IncidentReportScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.5,
-      base64: true,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      setPhotos([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+    if (!result.canceled && result.assets[0].uri) {
+      setPhotos([...photos, result.assets[0].uri]);
     }
   };
 
@@ -91,10 +90,9 @@ export default function IncidentReportScreen() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       quality: 0.5,
-      base64: true,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      setPhotos([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+    if (!result.canceled && result.assets[0].uri) {
+      setPhotos([...photos, result.assets[0].uri]);
     }
   };
 
@@ -126,7 +124,7 @@ export default function IncidentReportScreen() {
           anonymous: isAnonymous,
           wantsContact,
           contactPhone: wantsContact ? contactPhone : undefined,
-          photoBase64s: photos.length > 0 ? photos : undefined,
+          photoUris: photos.length > 0 ? photos : undefined,
         },
       );
       setReportId(docId);

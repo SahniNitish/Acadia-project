@@ -25,5 +25,5 @@ try {
 }
 
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const storage = getStorage(app, 'gs://acadia-campus-hub.firebasestorage.app');
 export { auth, app };

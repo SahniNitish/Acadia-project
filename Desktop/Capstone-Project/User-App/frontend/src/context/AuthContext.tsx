@@ -4,8 +4,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  sendEmailVerification,
-  reload,
   User as FirebaseUser,
   updateProfile,
 } from 'firebase/auth';
@@ -31,8 +29,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   refreshUser: () => Promise<void>;
-  resendVerificationEmail: () => Promise<void>;
-  reloadAndCheckVerified: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,8 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
-      // Only load profile if email is verified; unverified users stay on the verify screen
-      if (fbUser && fbUser.emailVerified) {
+      if (fbUser) {
         try {
           let profile = await getUserProfile(fbUser.uid);
           if (!profile) {
@@ -84,13 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Only @acadiau.ca emails are allowed');
     }
     const result = await signInWithEmailAndPassword(auth, email, password);
-    if (!result.user.emailVerified) {
-      // Keep Firebase session so the verify screen can resend, but block app access
-      setFirebaseUser(result.user);
-      const err: any = new Error('Please verify your email before signing in.');
-      err.code = 'auth/email-not-verified';
-      throw err;
-    }
     setFirebaseUser(result.user);
     let profile = await getUserProfile(result.user.uid);
     if (!profile) {
@@ -119,20 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     await createUserProfile(result.user.uid, profile);
-    // Send verification email before granting access
-    const actionCodeSettings = {
-      url: 'https://acadia-campus-hub.firebaseapp.com',
-      handleCodeInApp: false,
-    };
-    try {
-      await sendEmailVerification(result.user, actionCodeSettings);
-    } catch (emailErr: any) {
-      console.error('[sendEmailVerification error]', emailErr.code, emailErr.message);
-      setFirebaseUser(result.user);
-      throw new Error('Account created but we could not send the verification email. Use "Resend" on the next screen.');
-    }
     setFirebaseUser(result.user);
-    // Do NOT set user state — they must verify first
+    setUser({ id: result.user.uid, ...profile });
   };
 
   const logout = async () => {
@@ -161,45 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => prev ? { ...prev, ...data } : null);
   };
 
-  const resendVerificationEmail = async () => {
-    if (firebaseUser && !firebaseUser.emailVerified) {
-      const actionCodeSettings = {
-        url: 'https://acadia-campus-hub.firebaseapp.com',
-        handleCodeInApp: false,
-      };
-      await sendEmailVerification(firebaseUser, actionCodeSettings);
-    }
-  };
-
-  // Call after user taps "I've verified" — reloads Firebase token and sets app user if verified
-  const reloadAndCheckVerified = async (): Promise<boolean> => {
-    if (!firebaseUser) return false;
-    await reload(firebaseUser);
-    if (firebaseUser.emailVerified) {
-      try {
-        let profile = await getUserProfile(firebaseUser.uid);
-        if (!profile) {
-          profile = {
-            fullName: firebaseUser.displayName || '',
-            email: firebaseUser.email || '',
-            phone: '',
-            createdAt: new Date().toISOString(),
-          };
-          await createUserProfile(firebaseUser.uid, profile);
-        }
-        setUser({ id: firebaseUser.uid, ...profile });
-      } catch (err) {
-        setUser({
-          id: firebaseUser.uid,
-          fullName: firebaseUser.displayName || '',
-          email: firebaseUser.email || '',
-        });
-      }
-      return true;
-    }
-    return false;
-  };
-
   const refreshUser = async () => {
     if (firebaseUser) {
       try {
@@ -214,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, isLoading, login, signup, logout, updateUser, refreshUser, resendVerificationEmail, reloadAndCheckVerified }}>
+    <AuthContext.Provider value={{ user, firebaseUser, isLoading, login, signup, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -18,14 +18,23 @@ import { db, storage } from '../firebase/config';
 
 export const uploadIncidentPhoto = async (
   uid: string,
-  base64DataUri: string,
+  fileUri: string,
   index: number,
 ): Promise<string> => {
-  // React Native (Hermes) does not support creating Blobs from ArrayBuffer/Uint8Array.
-  // fetch() on a data URI returns a React Native blob that XHR can upload successfully.
-  const response = await fetch(base64DataUri);
+  const response = await fetch(fileUri);
   const blob = await response.blob();
   const storageRef = ref(storage, `incidents/${uid}/${Date.now()}_${index}.jpg`);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  return getDownloadURL(storageRef);
+};
+
+export const uploadProfilePhoto = async (
+  uid: string,
+  fileUri: string,
+): Promise<string> => {
+  const response = await fetch(fileUri);
+  const blob = await response.blob();
+  const storageRef = ref(storage, `profiles/${uid}/profile.jpg`);
   await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
   return getDownloadURL(storageRef);
 };
@@ -114,25 +123,24 @@ export const createIncident = async (
     anonymous: boolean;
     wantsContact: boolean;
     contactPhone?: string;
-    photoBase64s?: string[];
+    photoUris?: string[];
   },
 ): Promise<string> => {
   // Upload photos to Firebase Storage first
   let photoUrls: string[] = [];
-  if (data.photoBase64s && data.photoBase64s.length > 0 && uid) {
+  if (data.photoUris && data.photoUris.length > 0 && uid) {
     try {
       photoUrls = await Promise.all(
-        data.photoBase64s.map((b64, i) => uploadIncidentPhoto(uid, b64, i))
+        data.photoUris.map((uri, i) => uploadIncidentPhoto(uid, uri, i))
       );
     } catch (uploadErr: any) {
       const code = uploadErr?.code || '';
+      const msg = uploadErr?.message || uploadErr?.toString() || '';
+      console.error('[Storage upload error]', { code, msg, uploadErr });
       if (code === 'storage/unauthorized') {
         throw new Error('Photo upload blocked by Storage rules. Go to Firebase Console → Storage → Rules and allow authenticated writes.');
       }
-      if (code === 'storage/unknown' || code === '') {
-        throw new Error('Firebase Storage is not enabled. Go to Firebase Console → Storage → Get Started, then try again.');
-      }
-      throw new Error(`Photo upload failed (${code || uploadErr.message}).`);
+      throw new Error(`Photo upload failed (${code || msg}).`);
     }
   }
 

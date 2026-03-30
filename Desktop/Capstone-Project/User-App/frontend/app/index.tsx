@@ -45,9 +45,7 @@ export default function SplashScreen() {
   useEffect(() => {
     if (!isLoading && !seeding) {
       setTimeout(() => {
-        if (firebaseUser && !firebaseUser.emailVerified) {
-          router.replace('/verify-email');
-        } else if (user) {
+        if (user) {
           router.replace('/(tabs)');
         } else {
           router.replace('/login');
